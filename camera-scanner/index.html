@@ -201,6 +201,7 @@
         <img id="preview-img" src="">
     </div>
 
+    <script src="https://docs.opencv.org/4.x/opencv.js"></script>
     <script>
     // Global variables
     let stream = null;
@@ -286,217 +287,70 @@
         }
     }
 
-    // Image processing functions
-    function detectEdges(imageData) {
-        const data = imageData.data;
-        const width = imageData.width;
-        const height = imageData.height;
-        const edges = new Uint8ClampedArray(width * height);
-        
-        // Convert to grayscale and apply Sobel edge detection
-        for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-                const idx = (y * width + x) * 4;
-                
-                // Get surrounding pixels for Sobel operator
-                const tl = ((y-1) * width + (x-1)) * 4;
-                const tm = ((y-1) * width + x) * 4;
-                const tr = ((y-1) * width + (x+1)) * 4;
-                const ml = (y * width + (x-1)) * 4;
-                const mr = (y * width + (x+1)) * 4;
-                const bl = ((y+1) * width + (x-1)) * 4;
-                const bm = ((y+1) * width + x) * 4;
-                const br = ((y+1) * width + (x+1)) * 4;
-                
-                // Sobel X
-                const sobelX = (
-                    -1 * data[tl] + 1 * data[tr] +
-                    -2 * data[ml] + 2 * data[mr] +
-                    -1 * data[bl] + 1 * data[br]
-                ) / 4;
-                
-                // Sobel Y
-                const sobelY = (
-                    -1 * data[tl] - 2 * data[tm] - 1 * data[tr] +
-                    1 * data[bl] + 2 * data[bm] + 1 * data[br]
-                ) / 4;
-                
-                const magnitude = Math.sqrt(sobelX * sobelX + sobelY * sobelY);
-                edges[y * width + x] = magnitude > edgeThreshold ? 255 : 0;
-            }
-        }
-        
-        return edges;
-    }
-
-    function findContours(edges, width, height) {
-        // Simplified contour detection - find largest rectangular area
-        const contours = [];
-        const visited = new Set();
-        
-        // Find connected components
-        for (let y = 0; y < height; y += 5) {
-            for (let x = 0; x < width; x += 5) {
-                const idx = y * width + x;
-                if (edges[idx] > 0 && !visited.has(idx)) {
-                    const contour = traceContour(edges, width, height, x, y, visited);
-                    if (contour.length > 50) {
-                        contours.push(contour);
-                    }
-                }
-            }
-        }
-        
-        // Find the largest quadrilateral-like contour
-        let bestContour = null;
-        let maxArea = 0;
-        
-        for (const contour of contours) {
-            const simplified = simplifyContour(contour);
-            if (simplified.length >= 4) {
-                const area = getContourArea(simplified);
-                if (area > maxArea && area > (width * height * minAreaPercentage / 100)) {
-                    maxArea = area;
-                    bestContour = simplified;
-                }
-            }
-        }
-        
-        return bestContour ? findCorners(bestContour) : null;
-    }
-
-    function traceContour(edges, width, height, startX, startY, visited) {
-        const contour = [];
-        const stack = [[startX, startY]];
-        
-        while (stack.length > 0) {
-            const [x, y] = stack.pop();
-            const idx = y * width + x;
-            
-            if (x < 0 || x >= width || y < 0 || y >= height || visited.has(idx) || edges[idx] === 0) {
-                continue;
-            }
-            
-            visited.add(idx);
-            contour.push([x, y]);
-            
-            // Check 8 neighbors
-            for (let dy = -1; dy <= 1; dy++) {
-                for (let dx = -1; dx <= 1; dx++) {
-                    if (dx !== 0 || dy !== 0) {
-                        stack.push([x + dx, y + dy]);
-                    }
-                }
-            }
-        }
-        
-        return contour;
-    }
-
-    function simplifyContour(contour) {
-        // Douglas-Peucker algorithm simplified
-        if (contour.length < 3) return contour;
-        
-        const epsilon = 10; // Simplification threshold
-        const simplified = [contour[0]];
-        let prevPoint = contour[0];
-        
-        for (let i = 1; i < contour.length; i++) {
-            const point = contour[i];
-            const dist = Math.sqrt(
-                Math.pow(point[0] - prevPoint[0], 2) + 
-                Math.pow(point[1] - prevPoint[1], 2)
-            );
-            
-            if (dist > epsilon) {
-                simplified.push(point);
-                prevPoint = point;
-            }
-        }
-        
-        return simplified;
-    }
-
-    function findCorners(contour) {
-        // Find 4 corners of the document
-        if (contour.length < 4) return null;
-        
-        // Find extreme points
-        let topLeft = contour[0];
-        let topRight = contour[0];
-        let bottomLeft = contour[0];
-        let bottomRight = contour[0];
-        
-        let minSum = Infinity;
-        let maxSum = -Infinity;
-        let minDiff = Infinity;
-        let maxDiff = -Infinity;
-        
-        for (const point of contour) {
-            const sum = point[0] + point[1];
-            const diff = point[0] - point[1];
-            
-            if (sum < minSum) {
-                minSum = sum;
-                topLeft = point;
-            }
-            if (sum > maxSum) {
-                maxSum = sum;
-                bottomRight = point;
-            }
-            if (diff < minDiff) {
-                minDiff = diff;
-                bottomLeft = point;
-            }
-            if (diff > maxDiff) {
-                maxDiff = diff;
-                topRight = point;
-            }
-        }
-        
-        return [topLeft, topRight, bottomRight, bottomLeft];
-    }
-
-    function getContourArea(contour) {
-        // Calculate area using shoelace formula
-        let area = 0;
-        for (let i = 0; i < contour.length; i++) {
-            const j = (i + 1) % contour.length;
-            area += contour[i][0] * contour[j][1];
-            area -= contour[j][0] * contour[i][1];
-        }
-        return Math.abs(area / 2);
+    // Image processing functions using OpenCV
+    function orderCorners(points) {
+        points.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
+        const tl = points[0];
+        const br = points[3];
+        const tr = (points[1][0] - points[1][1] < points[2][0] - points[2][1]) ? points[1] : points[2];
+        const bl = (points[1][0] - points[1][1] < points[2][0] - points[2][1]) ? points[2] : points[1];
+        return [tl, tr, br, bl];
     }
 
     function detectDocument() {
         if (!autoDetectEnabled || isProcessing) {
+            requestAnimationFrame(detectDocument);
             return;
         }
-        
-        // Draw video frame to capture canvas
+
         captureCtx.drawImage(video, 0, 0);
-        const imageData = captureCtx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
-        
-        // Detect edges
-        const edges = detectEdges(imageData);
-        
-        // Find document contour
-        const newCorners = findContours(edges, captureCanvas.width, captureCanvas.height);
+        const frame = captureCtx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
+        let src = cv.matFromImageData(frame);
+        let gray = new cv.Mat();
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        let blurred = new cv.Mat();
+        cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+        let edges = new cv.Mat();
+        cv.Canny(blurred, edges, edgeThreshold, edgeThreshold * 3);
 
-        // Clear overlay
+        let contours = new cv.MatVector();
+        let hierarchy = new cv.Mat();
+        cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+        let best = null;
+        let maxArea = 0;
+        for (let i = 0; i < contours.size(); i++) {
+            let cnt = contours.get(i);
+            let peri = cv.arcLength(cnt, true);
+            let approx = new cv.Mat();
+            cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+            if (approx.rows === 4) {
+                let area = cv.contourArea(cnt);
+                if (area > maxArea && area > captureCanvas.width * captureCanvas.height * minAreaPercentage / 100) {
+                    maxArea = area;
+                    if (best) best.delete();
+                    best = approx.clone();
+                }
+            }
+            approx.delete();
+            cnt.delete();
+        }
+
         overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
         const now = Date.now();
-
-        if (newCorners) {
-            overlayCanvas.corners = newCorners;
+        if (best) {
+            const pts = [];
+            for (let i = 0; i < 4; i++) {
+                let p = best.intPtr(i, 0);
+                pts.push([p[0], p[1]]);
+            }
+            overlayCanvas.corners = orderCorners(pts);
             lastDetectionTime = now;
+            best.delete();
         }
 
         if (overlayCanvas.corners && now - lastDetectionTime < detectionRetention) {
             const corners = overlayCanvas.corners;
-
-            // Draw detected document outline
             overlayCtx.strokeStyle = '#00ff00';
             overlayCtx.lineWidth = 3;
             overlayCtx.beginPath();
@@ -506,15 +360,12 @@
             }
             overlayCtx.closePath();
             overlayCtx.stroke();
-
-            // Draw corner points
             overlayCtx.fillStyle = '#00ff00';
             for (const corner of corners) {
                 overlayCtx.beginPath();
                 overlayCtx.arc(corner[0], corner[1], 8, 0, 2 * Math.PI);
                 overlayCtx.fill();
             }
-
             detectionStatus.textContent = 'Document detected!';
             detectionStatus.classList.add('detected');
         } else {
@@ -522,13 +373,18 @@
             detectionStatus.classList.remove('detected');
             overlayCanvas.corners = null;
         }
-        
-        // Continue detection loop
+
+        src.delete();
+        gray.delete();
+        blurred.delete();
+        edges.delete();
+        contours.delete();
+        hierarchy.delete();
+
         requestAnimationFrame(detectDocument);
     }
 
     function perspectiveTransform(corners) {
-        // Calculate destination dimensions
         const width = Math.max(
             distance(corners[0], corners[1]),
             distance(corners[2], corners[3])
@@ -537,63 +393,39 @@
             distance(corners[0], corners[3]),
             distance(corners[1], corners[2])
         );
-        
-        // Create output canvas
-        const outputCanvas = document.createElement('canvas');
-        outputCanvas.width = width;
-        outputCanvas.height = height;
-        const outputCtx = outputCanvas.getContext('2d');
-        
-        // For simplicity, we'll use a basic affine transform
-        // In production, you'd want to use a proper perspective transform library
+
         captureCtx.drawImage(video, 0, 0);
-        const sourceData = captureCtx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
-        
-        // Map corners to rectangle
-        const destCorners = [
-            [0, 0],
-            [width, 0],
-            [width, height],
-            [0, height]
-        ];
-        
-        // Simple bilinear interpolation for demonstration
-        const outputData = outputCtx.createImageData(width, height);
-        
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                // Calculate source coordinates
-                const u = x / width;
-                const v = y / height;
-                
-                // Bilinear interpolation
-                const srcX = 
-                    corners[0][0] * (1-u) * (1-v) +
-                    corners[1][0] * u * (1-v) +
-                    corners[2][0] * u * v +
-                    corners[3][0] * (1-u) * v;
-                    
-                const srcY = 
-                    corners[0][1] * (1-u) * (1-v) +
-                    corners[1][1] * u * (1-v) +
-                    corners[2][1] * u * v +
-                    corners[3][1] * (1-u) * v;
-                
-                // Sample from source image
-                if (srcX >= 0 && srcX < captureCanvas.width && srcY >= 0 && srcY < captureCanvas.height) {
-                    const srcIdx = (Math.floor(srcY) * captureCanvas.width + Math.floor(srcX)) * 4;
-                    const destIdx = (y * width + x) * 4;
-                    
-                    outputData.data[destIdx] = sourceData.data[srcIdx];
-                    outputData.data[destIdx + 1] = sourceData.data[srcIdx + 1];
-                    outputData.data[destIdx + 2] = sourceData.data[srcIdx + 2];
-                    outputData.data[destIdx + 3] = 255;
-                }
-            }
-        }
-        
-        outputCtx.putImageData(outputData, 0, 0);
-        return outputCanvas.toDataURL('image/jpeg', 0.9);
+        const srcData = captureCtx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
+        let src = cv.matFromImageData(srcData);
+        let dst = new cv.Mat();
+
+        let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+            corners[0][0], corners[0][1],
+            corners[1][0], corners[1][1],
+            corners[2][0], corners[2][1],
+            corners[3][0], corners[3][1]
+        ]);
+        let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+            0, 0,
+            width, 0,
+            width, height,
+            0, height
+        ]);
+        let M = cv.getPerspectiveTransform(srcTri, dstTri);
+        cv.warpPerspective(src, dst, M, new cv.Size(width, height));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        cv.imshow(canvas, dst);
+
+        src.delete();
+        dst.delete();
+        srcTri.delete();
+        dstTri.delete();
+        M.delete();
+
+        return canvas.toDataURL('image/jpeg', 0.9);
     }
 
     function distance(p1, p2) {
@@ -697,7 +529,7 @@
     });
 
     // Initialize
-    startCamera();
+    cv['onRuntimeInitialized'] = startCamera;
 
     // Handle page visibility
     document.addEventListener('visibilitychange', () => {
