@@ -21,11 +21,12 @@ camera-scanner/
    pip install fastapi uvicorn
    ```
 
-2. Start the backend server from the `camera-scanner/backend` directory:
+2. Start the server from the repository root with HTTPS support (a self-signed
+   certificate will be generated automatically if needed):
    ```bash
-   uvicorn server:app --reload
+   python server.py
    ```
-   The server will run on `http://localhost:8000/` by default.
+   The server will run on `https://localhost:8000/`.
 
 3. Open the same URL in your desktop or phone browser connected to the same network. Grant camera permissions and start capturing documents. Each capture is saved in the `saved_docs` directory.
 
