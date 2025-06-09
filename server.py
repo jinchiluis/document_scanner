@@ -9,8 +9,30 @@ import socket
 
 app = FastAPI()
 
-# Serve frontend files
-app.mount("/", StaticFiles(directory=Path(__file__).resolve().parent.parent, html=True), name="static")
+# Serve frontend files - fix the path issue
+frontend_dir = Path(__file__).resolve().parent.parent
+print(f"Serving files from: {frontend_dir}")
+print(f"Looking for index.html at: {frontend_dir / 'index.html'}")
+
+# Check if index.html exists
+if not (frontend_dir / "index.html").exists():
+    print("ERROR: index.html not found!")
+    print("Current directory structure:")
+    for item in frontend_dir.iterdir():
+        print(f"  {item.name}")
+
+app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
+@app.get("/")
+async def serve_index():
+    """Serve the main page"""
+    index_file = frontend_dir / "index.html"
+    if index_file.exists():
+        with open(index_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return HTMLResponse(content=content)
+    else:
+        return HTMLResponse(content="<h1>Error: index.html not found</h1>", status_code=404)
 
 SAVE_DIR = Path(__file__).resolve().parent / "saved_docs"
 SAVE_DIR.mkdir(parents=True, exist_ok=True)
