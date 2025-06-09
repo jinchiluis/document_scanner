@@ -1,544 +1,271 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Smart Document Scanner</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 24px;
-        }
-        
-        #camera-container {
-            position: relative;
-            max-width: 100%;
-            margin: 0 auto;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        
-        video {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        
-        #overlay-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-            width: 100%;
-            height: 100%;
-        }
-        
-        #capture-canvas {
-            display: none;
-        }
-        
-        .controls {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        button {
-            padding: 15px 30px;
-            font-size: 16px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        button:active {
-            background: #0056b3;
-        }
-        
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .toggle-btn {
-            background: #28a745;
-        }
-        
-        .toggle-btn.active {
-            background: #dc3545;
-        }
-        
-        .preview {
-            margin-top: 20px;
-            max-width: 300px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .preview img {
-            width: 100%;
-            border: 2px solid #333;
-            border-radius: 8px;
-        }
-        
-        .status {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 8px;
-            display: none;
-        }
-        
-        .error-message {
-            background: #fee;
-            color: #c33;
-        }
-        
-        .success-message {
-            background: #efe;
-            color: #3c3;
-        }
-        
-        .info-message {
-            background: #e7f3ff;
-            color: #004085;
-        }
-        
-        .settings {
-            margin-top: 20px;
-            padding: 15px;
-            background: #fff;
-            border-radius: 8px;
-            text-align: left;
-            max-width: 400px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .slider-container {
-            margin: 10px 0;
-        }
-        
-        .slider-container label {
-            display: block;
-            margin-bottom: 5px;
-            color: #666;
-        }
-        
-        input[type="range"] {
-            width: 100%;
-        }
-        
-        .detection-status {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 8px 12px;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        
-        .detection-status.detected {
-            background: rgba(40, 167, 69, 0.9);
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Document Scanner Demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; margin: 0; padding: 24px; text-align: center; }
+    #camera-container { position: relative; display: inline-block; background: #111; border-radius: 12px; }
+    video, canvas { max-width: 90vw; border-radius: 12px; }
+    #overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
+    #controls { margin: 16px 0; }
+    button { font-size: 1rem; padding: 12px 28px; border-radius: 7px; border: none; background: #007bff; color: #fff; cursor: pointer; }
+    button:disabled { background: #aaa; }
+    .status { margin: 18px auto; padding: 12px; border-radius: 8px; max-width: 320px; }
+    .status.success { background: #e8ffe8; color: #228c22; }
+    .status.error { background: #ffeaea; color: #d60000; }
+    .slider-group { margin: 14px 0; }
+    .slider-group label { font-size: 0.95em; margin-right: 12px; }
+    #preview { margin: 28px auto; max-width: 320px; display: none; }
+    #preview img { width: 100%; border-radius: 8px; border: 2px solid #333; }
+    #detection-label { position: absolute; top: 10px; left: 10px; padding: 5px 14px; border-radius: 5px; background: rgba(0,0,0,0.7); color: #fff; font-size: 1em;}
+    #detection-label.detected { background: rgba(33,200,70,0.88); }
+  </style>
 </head>
 <body>
-    <h1>📱 Smart Document Scanner</h1>
-    
-    <div id="camera-container">
-        <video id="video" autoplay playsinline muted></video>
-        <canvas id="overlay-canvas"></canvas>
-        <div id="detection-status" class="detection-status">Searching for document...</div>
-    </div>
-    
-    <canvas id="capture-canvas"></canvas>
-    
-    <div class="controls">
-        <button id="capture-btn" disabled>Initializing Camera...</button>
-        <button id="auto-detect-toggle" class="toggle-btn">Auto-Detect: ON</button>
-        <button id="manual-capture-btn" style="display: none;">Manual Capture</button>
-    </div>
-    
-    <div class="settings">
-        <h3>Detection Settings</h3>
-        <div class="slider-container">
-            <label for="edge-threshold">Edge Detection Sensitivity: <span id="edge-value">50</span></label>
-            <input type="range" id="edge-threshold" min="20" max="100" value="50">
-        </div>
-        <div class="slider-container">
-            <label for="min-area">Minimum Document Size: <span id="area-value">20</span>%</label>
-            <input type="range" id="min-area" min="10" max="50" value="20">
-        </div>
-    </div>
-    
-    <div id="status" class="status"></div>
-    
-    <div id="preview" class="preview" style="display: none;">
-        <h3>Captured Document:</h3>
-        <img id="preview-img" src="">
-    </div>
-
-    <script src="https://docs.opencv.org/4.x/opencv.js"></script>
-    <script>
-    // Global variables
-    let stream = null;
-    let autoDetectEnabled = true;
+  <h1>📄 Document Scanner Demo</h1>
+  <div id="camera-container">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div id="detection-label">Searching…</div>
+  </div>
+  <div id="controls">
+    <button id="capture-btn" disabled>Initializing…</button>
+    <button id="toggle-btn">Auto Detect: ON</button>
+  </div>
+  <div class="slider-group">
+    <label>Edge Sensitivity <span id="edge-value">50</span></label>
+    <input type="range" id="edge-slider" min="10" max="100" value="50" />
+    <label>Min Area <span id="area-value">20</span>%</label>
+    <input type="range" id="area-slider" min="5" max="50" value="20" />
+  </div>
+  <div id="status" class="status"></div>
+  <div id="preview">
+    <h3>📑 Scanned Document:</h3>
+    <img id="preview-img" src="" />
+  </div>
+  <canvas id="hidden-canvas" style="display:none;"></canvas>
+  <script src="https://docs.opencv.org/4.x/opencv.js"></script>
+  <script>
+    // === Globals ===
+    let video = document.getElementById('video');
+    let overlay = document.getElementById('overlay');
+    let overlayCtx = overlay.getContext('2d');
+    let hiddenCanvas = document.getElementById('hidden-canvas');
+    let hiddenCtx = hiddenCanvas.getContext('2d');
+    let autoDetect = true;
+    let lastCorners = null;
+    let lastDetection = 0;
     let isProcessing = false;
     let edgeThreshold = 50;
-    let minAreaPercentage = 20;
-    // Remember the last successful detection time and corners
-    let lastDetectionTime = 0;
-    const detectionRetention = 700; // ms to keep last corners
-    
-    const video = document.getElementById('video');
-    const overlayCanvas = document.getElementById('overlay-canvas');
-    const captureCanvas = document.getElementById('capture-canvas');
-    const overlayCtx = overlayCanvas.getContext('2d');
-    const captureCtx = captureCanvas.getContext('2d');
-    
-    const captureBtn = document.getElementById('capture-btn');
-    const autoDetectToggle = document.getElementById('auto-detect-toggle');
-    const manualCaptureBtn = document.getElementById('manual-capture-btn');
-    const detectionStatus = document.getElementById('detection-status');
-    const status = document.getElementById('status');
-    
-    // Settings controls
-    const edgeSlider = document.getElementById('edge-threshold');
-    const areaSlider = document.getElementById('min-area');
-    
-    edgeSlider.addEventListener('input', (e) => {
-        edgeThreshold = parseInt(e.target.value);
-        document.getElementById('edge-value').textContent = edgeThreshold;
-    });
-    
-    areaSlider.addEventListener('input', (e) => {
-        minAreaPercentage = parseInt(e.target.value);
-        document.getElementById('area-value').textContent = minAreaPercentage;
-    });
+    let minAreaPct = 20;
 
-    // Camera setup
+    // === UI Hooks ===
+    let captureBtn = document.getElementById('capture-btn');
+    let toggleBtn = document.getElementById('toggle-btn');
+    let edgeSlider = document.getElementById('edge-slider');
+    let areaSlider = document.getElementById('area-slider');
+    let statusBox = document.getElementById('status');
+    let detectionLabel = document.getElementById('detection-label');
+    let preview = document.getElementById('preview');
+    let previewImg = document.getElementById('preview-img');
+
+    edgeSlider.oninput = e => {
+      edgeThreshold = +e.target.value;
+      document.getElementById('edge-value').textContent = edgeThreshold;
+    };
+    areaSlider.oninput = e => {
+      minAreaPct = +e.target.value;
+      document.getElementById('area-value').textContent = minAreaPct;
+    };
+
+    toggleBtn.onclick = () => {
+      autoDetect = !autoDetect;
+      toggleBtn.textContent = 'Auto Detect: ' + (autoDetect ? 'ON' : 'OFF');
+      if (autoDetect) requestAnimationFrame(detectFrame);
+    };
+
+    captureBtn.onclick = () => captureDocument();
+
+    // === Camera setup ===
     async function startCamera() {
-        try {
-            if (window.location.protocol !== 'https:' && 
-                !['localhost', '127.0.0.1'].includes(window.location.hostname)) {
-                throw new Error('Camera requires HTTPS connection.');
-            }
-
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment',
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
-                },
-                audio: false
-            });
-            
-            video.srcObject = stream;
-
-            video.onloadedmetadata = () => {
-                // Setup overlay canvas
-                overlayCanvas.width = video.videoWidth;
-                overlayCanvas.height = video.videoHeight;
-                captureCanvas.width = video.videoWidth;
-                captureCanvas.height = video.videoHeight;
-                
-                captureBtn.disabled = false;
-                captureBtn.textContent = '📸 Capture Document';
-                showStatus('Camera ready!', 'success');
-                
-                // Start detection loop if auto-detect is on
-                if (autoDetectEnabled) {
-                    requestAnimationFrame(detectDocument);
-                }
-            };
-
-        } catch (err) {
-            console.error('Camera error:', err);
-            showStatus('Camera access failed: ' + err.message, 'error');
-            manualCaptureBtn.style.display = 'inline-block';
-            captureBtn.style.display = 'none';
-        }
-    }
-
-    // Image processing functions using OpenCV
-    function orderCorners(points) {
-        points.sort((a, b) => (a[0] + a[1]) - (b[0] + b[1]));
-        const tl = points[0];
-        const br = points[3];
-        const tr = (points[1][0] - points[1][1] < points[2][0] - points[2][1]) ? points[1] : points[2];
-        const bl = (points[1][0] - points[1][1] < points[2][0] - points[2][1]) ? points[2] : points[1];
-        return [tl, tr, br, bl];
-    }
-
-    function detectDocument() {
-        if (!autoDetectEnabled || isProcessing) {
-            requestAnimationFrame(detectDocument);
-            return;
-        }
-
-        captureCtx.drawImage(video, 0, 0);
-        const frame = captureCtx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
-        let src = cv.matFromImageData(frame);
-        let gray = new cv.Mat();
-        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-        let blurred = new cv.Mat();
-        cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
-        let edges = new cv.Mat();
-        cv.Canny(blurred, edges, edgeThreshold, edgeThreshold * 3);
-
-        let contours = new cv.MatVector();
-        let hierarchy = new cv.Mat();
-        cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-        let best = null;
-        let maxArea = 0;
-        for (let i = 0; i < contours.size(); i++) {
-            let cnt = contours.get(i);
-            let peri = cv.arcLength(cnt, true);
-            let approx = new cv.Mat();
-            cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
-            if (approx.rows === 4) {
-                let area = cv.contourArea(cnt);
-                if (area > maxArea && area > captureCanvas.width * captureCanvas.height * minAreaPercentage / 100) {
-                    maxArea = area;
-                    if (best) best.delete();
-                    best = approx.clone();
-                }
-            }
-            approx.delete();
-            cnt.delete();
-        }
-
-        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-        const now = Date.now();
-        if (best) {
-            const pts = [];
-            for (let i = 0; i < 4; i++) {
-                let p = best.intPtr(i, 0);
-                pts.push([p[0], p[1]]);
-            }
-            overlayCanvas.corners = orderCorners(pts);
-            lastDetectionTime = now;
-            best.delete();
-        }
-
-        if (overlayCanvas.corners && now - lastDetectionTime < detectionRetention) {
-            const corners = overlayCanvas.corners;
-            overlayCtx.strokeStyle = '#00ff00';
-            overlayCtx.lineWidth = 3;
-            overlayCtx.beginPath();
-            overlayCtx.moveTo(corners[0][0], corners[0][1]);
-            for (let i = 1; i < corners.length; i++) {
-                overlayCtx.lineTo(corners[i][0], corners[i][1]);
-            }
-            overlayCtx.closePath();
-            overlayCtx.stroke();
-            overlayCtx.fillStyle = '#00ff00';
-            for (const corner of corners) {
-                overlayCtx.beginPath();
-                overlayCtx.arc(corner[0], corner[1], 8, 0, 2 * Math.PI);
-                overlayCtx.fill();
-            }
-            detectionStatus.textContent = 'Document detected!';
-            detectionStatus.classList.add('detected');
-        } else {
-            detectionStatus.textContent = 'Searching for document...';
-            detectionStatus.classList.remove('detected');
-            overlayCanvas.corners = null;
-        }
-
-        src.delete();
-        gray.delete();
-        blurred.delete();
-        edges.delete();
-        contours.delete();
-        hierarchy.delete();
-
-        requestAnimationFrame(detectDocument);
-    }
-
-    function perspectiveTransform(corners) {
-        const width = Math.max(
-            distance(corners[0], corners[1]),
-            distance(corners[2], corners[3])
-        );
-        const height = Math.max(
-            distance(corners[0], corners[3]),
-            distance(corners[1], corners[2])
-        );
-
-        captureCtx.drawImage(video, 0, 0);
-        const srcData = captureCtx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
-        let src = cv.matFromImageData(srcData);
-        let dst = new cv.Mat();
-
-        let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-            corners[0][0], corners[0][1],
-            corners[1][0], corners[1][1],
-            corners[2][0], corners[2][1],
-            corners[3][0], corners[3][1]
-        ]);
-        let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-            0, 0,
-            width, 0,
-            width, height,
-            0, height
-        ]);
-        let M = cv.getPerspectiveTransform(srcTri, dstTri);
-        cv.warpPerspective(src, dst, M, new cv.Size(width, height));
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        cv.imshow(canvas, dst);
-
-        src.delete();
-        dst.delete();
-        srcTri.delete();
-        dstTri.delete();
-        M.delete();
-
-        return canvas.toDataURL('image/jpeg', 0.9);
-    }
-
-    function distance(p1, p2) {
-        return Math.sqrt(Math.pow(p1[0] - p2[0], 2) + Math.pow(p1[1] - p2[1], 2));
-    }
-
-    function captureDocument() {
-        if (isProcessing) return;
-        isProcessing = true;
-        
-        let imageData;
-        
-        if (autoDetectEnabled && overlayCanvas.corners) {
-            // Capture and transform detected document
-            imageData = perspectiveTransform(overlayCanvas.corners);
-            showStatus('Document extracted and transformed!', 'success');
-        } else {
-            // Capture full frame
-            captureCtx.drawImage(video, 0, 0);
-            imageData = captureCanvas.toDataURL('image/jpeg', 0.9);
-            showStatus('Full frame captured!', 'success');
-        }
-        
-        // Show preview
-        document.getElementById('preview').style.display = 'block';
-        document.getElementById('preview-img').src = imageData;
-        
-        // Save to server
-        saveImage(imageData);
-        
-        isProcessing = false;
-    }
-
-    async function saveImage(imageData) {
-        try {
-            const response = await fetch('/save-image', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ image: imageData })
-            });
-            
-            if (!response.ok) throw new Error('Server error');
-            
-            const data = await response.json();
-            showStatus('✅ Document saved successfully!', 'success');
-            
-        } catch (err) {
-            showStatus('❌ Failed to save image: ' + err.message, 'error');
-        }
-    }
-
-    function showStatus(message, type) {
-        status.className = 'status ' + type + '-message';
-        status.textContent = message;
-        status.style.display = 'block';
-        
-        if (type === 'success') {
-            setTimeout(() => {
-                status.style.display = 'none';
-            }, 3000);
-        }
-    }
-
-    // Event handlers
-    captureBtn.addEventListener('click', captureDocument);
-
-    autoDetectToggle.addEventListener('click', () => {
-        autoDetectEnabled = !autoDetectEnabled;
-        autoDetectToggle.textContent = `Auto-Detect: ${autoDetectEnabled ? 'ON' : 'OFF'}`;
-        autoDetectToggle.classList.toggle('active', !autoDetectEnabled);
-        
-        if (autoDetectEnabled) {
-            requestAnimationFrame(detectDocument);
-        } else {
-            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-            detectionStatus.style.display = 'none';
-        }
-    });
-
-    manualCaptureBtn.addEventListener('click', () => {
-        // Handle file upload for devices without camera
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.capture = 'environment';
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    saveImage(e.target.result);
-                    document.getElementById('preview').style.display = 'block';
-                    document.getElementById('preview-img').src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720} }
+        });
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+          setCanvasSize();
+          captureBtn.disabled = false;
+          captureBtn.textContent = '📸 Capture';
+          showStatus('Camera ready!','success');
+          if (autoDetect) requestAnimationFrame(detectFrame);
         };
-        input.click();
-    });
+      } catch (err) {
+        showStatus('Camera error: ' + err.message, 'error');
+        captureBtn.textContent = 'Camera Failed';
+      }
+    }
+    function setCanvasSize() {
+      overlay.width = video.videoWidth;
+      overlay.height = video.videoHeight;
+      hiddenCanvas.width = video.videoWidth;
+      hiddenCanvas.height = video.videoHeight;
+    }
 
-    // Initialize
-    cv['onRuntimeInitialized'] = startCamera;
+    // === Document Detection Loop ===
+    function detectFrame() {
+      if (!autoDetect || isProcessing || video.readyState !== 4) {
+        requestAnimationFrame(detectFrame);
+        return;
+      }
+      // Get video frame to canvas
+      hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+      let frame = hiddenCtx.getImageData(0,0,hiddenCanvas.width,hiddenCanvas.height);
+      let src = cv.matFromImageData(frame);
+      let gray = new cv.Mat();
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      let blur = new cv.Mat();
+      cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
+      let edges = new cv.Mat();
+      cv.Canny(blur, edges, edgeThreshold, edgeThreshold*2);
 
-    // Handle page visibility
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden && stream) {
-            stream.getTracks().forEach(track => track.stop());
-        } else if (!document.hidden) {
-            startCamera();
+      let contours = new cv.MatVector();
+      let hierarchy = new cv.Mat();
+      cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+      // Find largest quadrilateral
+      let best = null, maxArea = 0;
+      for (let i=0; i<contours.size(); ++i) {
+        let cnt = contours.get(i);
+        let peri = cv.arcLength(cnt, true);
+        let approx = new cv.Mat();
+        cv.approxPolyDP(cnt, approx, 0.02*peri, true);
+        if (approx.rows === 4) {
+          let area = cv.contourArea(cnt);
+          if (area > maxArea && area > hiddenCanvas.width * hiddenCanvas.height * minAreaPct/100) {
+            maxArea = area;
+            if (best) best.delete();
+            best = approx.clone();
+          }
         }
+        approx.delete();
+        cnt.delete();
+      }
+      // Draw overlay
+      overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+      const now = Date.now();
+      if (best) {
+        // Extract corners
+        let pts = [];
+        for (let i=0; i<4; ++i) {
+          let p = best.intPtr(i,0);
+          pts.push([p[0],p[1]]);
+        }
+        lastCorners = orderCorners(pts);
+        lastDetection = now;
+        best.delete();
+      }
+      // Draw if recent detection
+      if (lastCorners && (now-lastDetection < 700)) {
+        drawPolygon(lastCorners, "#2ef516");
+        detectionLabel.textContent = 'Document Detected!';
+        detectionLabel.classList.add('detected');
+      } else {
+        detectionLabel.textContent = 'Searching…';
+        detectionLabel.classList.remove('detected');
+        lastCorners = null;
+      }
+      src.delete(); gray.delete(); blur.delete(); edges.delete(); contours.delete(); hierarchy.delete();
+      requestAnimationFrame(detectFrame);
+    }
+    // Draw detected polygon/corners
+    function drawPolygon(corners, color) {
+      overlayCtx.strokeStyle = color;
+      overlayCtx.lineWidth = 4;
+      overlayCtx.beginPath();
+      overlayCtx.moveTo(corners[0][0], corners[0][1]);
+      for (let i=1;i<4;++i) overlayCtx.lineTo(corners[i][0], corners[i][1]);
+      overlayCtx.closePath();
+      overlayCtx.stroke();
+      for (let c of corners) {
+        overlayCtx.beginPath();
+        overlayCtx.arc(c[0],c[1],8,0,2*Math.PI);
+        overlayCtx.fillStyle = color;
+        overlayCtx.fill();
+      }
+    }
+    // Robust corner order: tl, tr, br, bl
+    function orderCorners(pts) {
+      pts = pts.slice().sort((a,b) => a[1]-b[1]);
+      let [t1,t2, b1,b2] = pts;
+      let [tl, tr] = [t1, t2].sort((a,b) => a[0]-b[0]);
+      let [bl, br] = [b1, b2].sort((a,b) => a[0]-b[0]);
+      return [tl,tr,br,bl];
+    }
+
+    // === Capture, Perspective Transform, Save ===
+    function captureDocument() {
+      if (isProcessing) return;
+      isProcessing = true;
+      let imgData;
+      if (lastCorners) {
+        imgData = extractDocument(lastCorners);
+        showStatus('Document transformed!','success');
+      } else {
+        hiddenCtx.drawImage(video,0,0,hiddenCanvas.width,hiddenCanvas.height);
+        imgData = hiddenCanvas.toDataURL('image/jpeg',0.95);
+        showStatus('Full frame captured!','success');
+      }
+      preview.style.display = 'block';
+      previewImg.src = imgData;
+      // Optional: Upload/save logic goes here.
+      isProcessing = false;
+    }
+    function extractDocument(corners) {
+      const w = Math.max(
+        dist(corners[0], corners[1]),
+        dist(corners[2], corners[3])
+      );
+      const h = Math.max(
+        dist(corners[0], corners[3]),
+        dist(corners[1], corners[2])
+      );
+      hiddenCtx.drawImage(video,0,0,hiddenCanvas.width,hiddenCanvas.height);
+      let src = cv.matFromImageData(hiddenCtx.getImageData(0,0,hiddenCanvas.width,hiddenCanvas.height));
+      let dst = new cv.Mat();
+      let srcTri = cv.matFromArray(4,1,cv.CV_32FC2, [].concat(...corners));
+      let dstTri = cv.matFromArray(4,1,cv.CV_32FC2, [0,0, w,0, w,h, 0,h]);
+      let M = cv.getPerspectiveTransform(srcTri, dstTri);
+      cv.warpPerspective(src, dst, M, new cv.Size(w,h));
+      let outCanvas = document.createElement('canvas');
+      outCanvas.width = w; outCanvas.height = h;
+      cv.imshow(outCanvas, dst);
+      let outURL = outCanvas.toDataURL('image/jpeg',0.95);
+      src.delete(); dst.delete(); srcTri.delete(); dstTri.delete(); M.delete();
+      return outURL;
+    }
+    function dist(a,b){ return Math.hypot(a[0]-b[0],a[1]-b[1]); }
+
+    // === Feedback helpers ===
+    function showStatus(msg, type='info') {
+      statusBox.textContent = msg;
+      statusBox.className = 'status ' + (type || '');
+      if(type==='success') setTimeout(()=>statusBox.textContent='',2000);
+    }
+
+    // === Initialize ===
+    cv['onRuntimeInitialized'] = () => {
+      startCamera();
+    };
+    document.addEventListener('visibilitychange', ()=>{
+      if(document.hidden && video.srcObject) {
+        video.srcObject.getTracks().forEach(t=>t.stop());
+      } else if(!document.hidden && !video.srcObject) {
+        startCamera();
+      }
     });
-    </script>
+  </script>
 </body>
 </html>
