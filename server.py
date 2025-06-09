@@ -9,18 +9,37 @@ import socket
 
 app = FastAPI()
 
-# Serve frontend files - fix the path issue
-frontend_dir = Path(__file__).resolve().parent.parent
-print(f"Serving files from: {frontend_dir}")
-print(f"Looking for index.html at: {frontend_dir / 'index.html'}")
+# Since server.py is in parent folder of camera-scanner
+# Structure: 
+# parent-folder/
+# ├── server.py          ← YOU ARE HERE
+# └── camera-scanner/
+#     ├── index.html
+#     ├── styles.css
+#     └── script.js
 
-# Check if index.html exists
-if not (frontend_dir / "index.html").exists():
-    print("ERROR: index.html not found!")
-    print("Current directory structure:")
+# Path to camera-scanner folder
+frontend_dir = Path(__file__).resolve().parent / "camera-scanner"
+print(f"Looking for camera-scanner folder at: {frontend_dir}")
+
+# Check if camera-scanner folder exists
+if not frontend_dir.exists():
+    print("ERROR: camera-scanner folder not found!")
+    print("Current directory contents:")
+    for item in Path(__file__).resolve().parent.iterdir():
+        print(f"  📁 {item.name}")
+else:
+    print(f"✅ Found camera-scanner folder")
+    print("Contents of camera-scanner folder:")
     for item in frontend_dir.iterdir():
-        print(f"  {item.name}")
+        print(f"  📄 {item.name}")
 
+# Create saved_docs folder next to server.py
+SAVE_DIR = Path(__file__).resolve().parent / "saved_docs"
+SAVE_DIR.mkdir(parents=True, exist_ok=True)
+print(f"Documents will be saved to: {SAVE_DIR}")
+
+# Mount static files from camera-scanner folder
 app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 @app.get("/")
@@ -32,10 +51,10 @@ async def serve_index():
             content = f.read()
         return HTMLResponse(content=content)
     else:
-        return HTMLResponse(content="<h1>Error: index.html not found</h1>", status_code=404)
-
-SAVE_DIR = Path(__file__).resolve().parent / "saved_docs"
-SAVE_DIR.mkdir(parents=True, exist_ok=True)
+        return HTMLResponse(
+            content=f"<h1>Error: index.html not found</h1><p>Looking at: {index_file}</p>", 
+            status_code=404
+        )
 
 @app.post("/save-image")
 async def save_image(req: Request):
@@ -50,7 +69,6 @@ async def save_image(req: Request):
 def get_local_ip():
     """Get the local IP address"""
     try:
-        # Connect to a remote server to determine local IP
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         local_ip = s.getsockname()[0]
@@ -80,7 +98,7 @@ if __name__ == "__main__":
     # Run server accessible from network
     uvicorn.run(
         "server:app", 
-        host="0.0.0.0",  # Allow connections from other devices
+        host="0.0.0.0",
         port=port,
         reload=True
     )
