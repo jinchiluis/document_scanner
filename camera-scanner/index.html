@@ -134,6 +134,9 @@
       let contours = new cv.MatVector();
       let hierarchy = new cv.Mat();
       cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+      //Jinch manuell
+      console.log('Contours found:', contours.size());
+      //Jinch manuell
 
       // Find largest quadrilateral
       let best = null, maxArea = 0;
