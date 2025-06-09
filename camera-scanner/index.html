@@ -208,6 +208,9 @@
     let isProcessing = false;
     let edgeThreshold = 50;
     let minAreaPercentage = 20;
+    // Remember the last successful detection time and corners
+    let lastDetectionTime = 0;
+    const detectionRetention = 700; // ms to keep last corners
     
     const video = document.getElementById('video');
     const overlayCanvas = document.getElementById('overlay-canvas');
@@ -478,12 +481,21 @@
         const edges = detectEdges(imageData);
         
         // Find document contour
-        const corners = findContours(edges, captureCanvas.width, captureCanvas.height);
-        
+        const newCorners = findContours(edges, captureCanvas.width, captureCanvas.height);
+
         // Clear overlay
         overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-        
-        if (corners) {
+
+        const now = Date.now();
+
+        if (newCorners) {
+            overlayCanvas.corners = newCorners;
+            lastDetectionTime = now;
+        }
+
+        if (overlayCanvas.corners && now - lastDetectionTime < detectionRetention) {
+            const corners = overlayCanvas.corners;
+
             // Draw detected document outline
             overlayCtx.strokeStyle = '#00ff00';
             overlayCtx.lineWidth = 3;
@@ -494,7 +506,7 @@
             }
             overlayCtx.closePath();
             overlayCtx.stroke();
-            
+
             // Draw corner points
             overlayCtx.fillStyle = '#00ff00';
             for (const corner of corners) {
@@ -502,12 +514,9 @@
                 overlayCtx.arc(corner[0], corner[1], 8, 0, 2 * Math.PI);
                 overlayCtx.fill();
             }
-            
+
             detectionStatus.textContent = 'Document detected!';
             detectionStatus.classList.add('detected');
-            
-            // Store corners for capture
-            overlayCanvas.corners = corners;
         } else {
             detectionStatus.textContent = 'Searching for document...';
             detectionStatus.classList.remove('detected');
