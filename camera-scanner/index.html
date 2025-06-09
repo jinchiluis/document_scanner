@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Simple Document Scanner</title>
+  <title>Document Edge Detector</title>
   <style>
     body { 
       font-family: system-ui, sans-serif; 
       background: #1a1a1a; 
       margin: 0; 
-      padding: 20px; 
+      padding: 10px; 
       text-align: center; 
       color: #fff;
     }
@@ -18,15 +18,11 @@
       position: relative; 
       display: inline-block; 
       max-width: 100%;
-      background: #000;
-      border-radius: 15px;
-      overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
     
-    video { 
-      width: 100%;
-      max-width: 600px;
+    video, canvas { 
+      max-width: 100%;
+      border-radius: 10px;
       display: block;
     }
     
@@ -34,443 +30,560 @@
       position: absolute;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
       pointer-events: none;
+      z-index: 10;
     }
-    
-    #guide {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 80%;
-      height: 70%;
-      border: 3px dashed rgba(255, 255, 255, 0.5);
-      border-radius: 10px;
-      pointer-events: none;
-    }
-    
-    #guide::before {
-      content: "Place document within frame";
-      position: absolute;
-      top: -30px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 14px;
-      color: rgba(255, 255, 255, 0.8);
-      background: rgba(0, 0, 0, 0.7);
-      padding: 5px 15px;
-      border-radius: 20px;
-    }
-    
-    .corner {
-      position: absolute;
-      width: 40px;
-      height: 40px;
-      border: 3px solid #00ff00;
-    }
-    
-    .corner.tl { top: -3px; left: -3px; border-right: none; border-bottom: none; }
-    .corner.tr { top: -3px; right: -3px; border-left: none; border-bottom: none; }
-    .corner.bl { bottom: -3px; left: -3px; border-right: none; border-top: none; }
-    .corner.br { bottom: -3px; right: -3px; border-left: none; border-top: none; }
     
     #controls {
-      margin: 30px 0;
+      margin: 20px 0;
     }
     
     button {
-      font-size: 1.1rem;
-      padding: 15px 40px;
-      margin: 0 10px;
-      border-radius: 30px;
+      font-size: 1rem;
+      padding: 12px 25px;
+      margin: 5px;
+      border-radius: 25px;
       border: none;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #007bff;
       color: #fff;
       cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    }
-    
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 7px 20px rgba(0,0,0,0.4);
-    }
-    
-    button:active {
-      transform: translateY(0);
     }
     
     button:disabled {
       background: #555;
-      cursor: not-allowed;
-      transform: none;
     }
     
-    #flash {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: white;
-      opacity: 0;
-      pointer-events: none;
-      z-index: 9999;
-    }
-    
-    @keyframes flash {
-      0% { opacity: 0; }
-      50% { opacity: 0.8; }
-      100% { opacity: 0; }
-    }
-    
-    .flash-animation {
-      animation: flash 0.3s ease-out;
-    }
-    
-    #preview-container {
-      margin: 30px auto;
-      max-width: 600px;
-      display: none;
-    }
-    
-    #preview {
-      width: 100%;
-      border-radius: 10px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
-    
-    #filters {
-      margin: 20px 0;
-      padding: 20px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 10px;
-    }
-    
-    .filter-group {
-      margin: 15px 0;
+    .slider-group {
+      margin: 10px 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 15px;
+      gap: 10px;
     }
     
-    .filter-group label {
-      min-width: 100px;
+    .slider-group label {
+      min-width: 120px;
       text-align: right;
+      font-size: 14px;
     }
     
-    .filter-group input[type="range"] {
-      width: 200px;
-    }
-    
-    .filter-group span {
-      min-width: 50px;
-      text-align: left;
+    input[type="range"] {
+      width: 150px;
     }
     
     #status {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 15px 30px;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 8px 15px;
       background: rgba(0,0,0,0.8);
-      color: #fff;
-      border-radius: 30px;
-      display: none;
-      z-index: 1000;
+      border-radius: 20px;
+      font-size: 14px;
+      z-index: 20;
     }
     
-    #status.success {
-      background: rgba(0, 200, 0, 0.9);
+    #status.detected {
+      background: rgba(0,200,0,0.9);
     }
     
-    #status.error {
-      background: rgba(200, 0, 0, 0.9);
+    #debug-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px 0;
     }
     
-    #hidden-canvas {
-      display: none;
+    .debug-canvas {
+      border: 2px solid #444;
+      border-radius: 5px;
+      max-width: 150px;
+    }
+    
+    #result {
+      margin: 20px auto;
+      max-width: 400px;
+    }
+    
+    #result canvas {
+      width: 100%;
+      border: 2px solid #0f0;
     }
   </style>
 </head>
 <body>
-  <h1>📄 Document Scanner</h1>
+  <h1>📄 Smart Document Scanner</h1>
   
   <div id="camera-container">
     <video id="video" autoplay playsinline muted></video>
-    <div id="overlay">
-      <div id="guide">
-        <div class="corner tl"></div>
-        <div class="corner tr"></div>
-        <div class="corner bl"></div>
-        <div class="corner br"></div>
-      </div>
-    </div>
+    <canvas id="overlay"></canvas>
+    <div id="status">Initializing...</div>
   </div>
   
   <div id="controls">
-    <button id="capture-btn" disabled>📸 Initializing...</button>
-    <button id="save-btn" style="display:none;">💾 Save Document</button>
+    <button id="capture-btn" disabled>Initializing...</button>
+    <button id="auto-btn">Auto Mode: ON</button>
+    <button id="debug-btn">Debug: OFF</button>
   </div>
   
-  <div id="preview-container">
-    <h3>Captured Document</h3>
-    <canvas id="preview"></canvas>
-    
-    <div id="filters">
-      <h4>Enhance Document</h4>
-      
-      <div class="filter-group">
-        <label>Brightness:</label>
-        <input type="range" id="brightness" min="50" max="150" value="100">
-        <span id="brightness-val">100</span>
-      </div>
-      
-      <div class="filter-group">
-        <label>Contrast:</label>
-        <input type="range" id="contrast" min="50" max="200" value="100">
-        <span id="contrast-val">100</span>
-      </div>
-      
-      <div class="filter-group">
-        <label>Sharpness:</label>
-        <input type="range" id="sharpness" min="0" max="100" value="0">
-        <span id="sharpness-val">0</span>
-      </div>
-      
-      <button onclick="resetFilters()">Reset</button>
-      <button onclick="autoEnhance()">Auto Enhance</button>
+  <div class="slider-group">
+    <label>Edge Threshold:</label>
+    <input type="range" id="threshold" min="10" max="100" value="30">
+    <span id="threshold-val">30</span>
+  </div>
+  
+  <div class="slider-group">
+    <label>Min Size %:</label>
+    <input type="range" id="minsize" min="10" max="50" value="20">
+    <span id="minsize-val">20</span>
+  </div>
+  
+  <div id="debug-container" style="display:none;">
+    <div>
+      <div>Grayscale</div>
+      <canvas id="debug-gray" class="debug-canvas"></canvas>
+    </div>
+    <div>
+      <div>Edges</div>
+      <canvas id="debug-edge" class="debug-canvas"></canvas>
     </div>
   </div>
   
-  <canvas id="hidden-canvas"></canvas>
-  <div id="flash"></div>
-  <div id="status"></div>
+  <div id="result" style="display:none;">
+    <h3>Captured Document</h3>
+    <canvas id="result-canvas"></canvas>
+    <br>
+    <button onclick="saveResult()">💾 Save</button>
+  </div>
+  
+  <canvas id="process" style="display:none;"></canvas>
   
   <script>
-    // Elements
     const video = document.getElementById('video');
-    const preview = document.getElementById('preview');
-    const previewContainer = document.getElementById('preview-container');
-    const hiddenCanvas = document.getElementById('hidden-canvas');
+    const overlay = document.getElementById('overlay');
+    const overlayCtx = overlay.getContext('2d');
+    const processCanvas = document.getElementById('process');
+    const processCtx = processCanvas.getContext('2d');
     const captureBtn = document.getElementById('capture-btn');
-    const saveBtn = document.getElementById('save-btn');
-    const flash = document.getElementById('flash');
+    const autoBtn = document.getElementById('auto-btn');
+    const debugBtn = document.getElementById('debug-btn');
     const status = document.getElementById('status');
+    const debugContainer = document.getElementById('debug-container');
+    const resultDiv = document.getElementById('result');
+    const resultCanvas = document.getElementById('result-canvas');
+    const resultCtx = resultCanvas.getContext('2d');
     
-    const hiddenCtx = hiddenCanvas.getContext('2d');
-    const previewCtx = preview.getContext('2d');
+    let autoMode = true;
+    let debugMode = false;
+    let isProcessing = false;
+    let detectedCorners = null;
+    let edgeThreshold = 30;
+    let minSizePct = 20;
     
-    let stream = null;
-    let originalImageData = null;
-    
-    // Filter controls
-    const brightnessSlider = document.getElementById('brightness');
-    const contrastSlider = document.getElementById('contrast');
-    const sharpnessSlider = document.getElementById('sharpness');
+    // Sobel kernels for edge detection
+    const sobelX = [
+      [-1, 0, 1],
+      [-2, 0, 2],
+      [-1, 0, 1]
+    ];
+    const sobelY = [
+      [-1, -2, -1],
+      [0, 0, 0],
+      [1, 2, 1]
+    ];
     
     // Initialize camera
     async function initCamera() {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
             facingMode: 'environment',
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
         });
         
         video.srcObject = stream;
-        
         video.onloadedmetadata = () => {
           video.play();
-          captureBtn.disabled = false;
-          captureBtn.textContent = '📸 Capture Document';
-          showStatus('Camera ready!', 'success');
+          setTimeout(() => {
+            setupCanvases();
+            captureBtn.disabled = false;
+            captureBtn.textContent = '📸 Capture';
+            status.textContent = 'Ready';
+            if (autoMode) startProcessing();
+          }, 500);
         };
-        
       } catch (err) {
-        showStatus('Camera error: ' + err.message, 'error');
-        captureBtn.textContent = 'Camera Failed';
+        status.textContent = 'Camera error';
+        console.error(err);
       }
     }
     
-    // Capture photo
-    function captureDocument() {
-      // Flash effect
-      flash.classList.add('flash-animation');
-      setTimeout(() => flash.classList.remove('flash-animation'), 300);
+    function setupCanvases() {
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      overlay.width = w;
+      overlay.height = h;
+      processCanvas.width = w;
+      processCanvas.height = h;
       
-      // Set canvas size to video size
-      hiddenCanvas.width = video.videoWidth;
-      hiddenCanvas.height = video.videoHeight;
-      preview.width = video.videoWidth;
-      preview.height = video.videoHeight;
-      
-      // Draw video frame to canvas
-      hiddenCtx.drawImage(video, 0, 0);
-      
-      // Store original image data
-      originalImageData = hiddenCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height);
-      
-      // Show preview
-      previewCtx.putImageData(originalImageData, 0, 0);
-      previewContainer.style.display = 'block';
-      saveBtn.style.display = 'inline-block';
-      
-      // Reset filters
-      resetFilters();
-      
-      showStatus('Document captured!', 'success');
-      
-      // Scroll to preview
-      previewContainer.scrollIntoView({ behavior: 'smooth' });
+      // Set overlay size to match video
+      overlay.style.width = video.clientWidth + 'px';
+      overlay.style.height = video.clientHeight + 'px';
     }
     
-    // Apply filters
-    function applyFilters() {
-      if (!originalImageData) return;
+    // Main processing loop
+    function startProcessing() {
+      if (!autoMode || isProcessing) return;
       
-      const brightness = parseInt(brightnessSlider.value);
-      const contrast = parseInt(contrastSlider.value);
-      const sharpness = parseInt(sharpnessSlider.value);
+      detectEdges();
+      requestAnimationFrame(startProcessing);
+    }
+    
+    // Edge detection
+    function detectEdges() {
+      isProcessing = true;
       
-      // Create a copy of original image data
-      const imageData = new ImageData(
-        new Uint8ClampedArray(originalImageData.data),
-        originalImageData.width,
-        originalImageData.height
-      );
+      // Draw video frame
+      processCtx.drawImage(video, 0, 0);
+      const imageData = processCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
       
+      // Convert to grayscale
+      const gray = toGrayscale(imageData);
+      
+      // Apply Gaussian blur to reduce noise
+      const blurred = gaussianBlur(gray);
+      
+      // Detect edges using Sobel
+      const edges = sobelEdgeDetection(blurred);
+      
+      // Show debug canvases
+      if (debugMode) {
+        showDebugCanvas('debug-gray', gray);
+        showDebugCanvas('debug-edge', edges);
+      }
+      
+      // Find lines using simplified Hough transform
+      const lines = findLines(edges);
+      
+      // Find document corners
+      const corners = findDocumentCorners(lines, processCanvas.width, processCanvas.height);
+      
+      // Draw overlay
+      overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+      
+      if (corners && corners.length === 4) {
+        detectedCorners = corners;
+        drawPolygon(corners, '#00ff00', 3);
+        status.textContent = 'Document detected!';
+        status.classList.add('detected');
+      } else {
+        detectedCorners = null;
+        status.textContent = 'Searching...';
+        status.classList.remove('detected');
+      }
+      
+      // Draw all detected lines for debugging
+      if (debugMode && lines.length > 0) {
+        overlayCtx.strokeStyle = 'rgba(255, 255, 0, 0.3)';
+        overlayCtx.lineWidth = 1;
+        lines.forEach(line => {
+          overlayCtx.beginPath();
+          overlayCtx.moveTo(line.x1, line.y1);
+          overlayCtx.lineTo(line.x2, line.y2);
+          overlayCtx.stroke();
+        });
+      }
+      
+      isProcessing = false;
+    }
+    
+    // Convert to grayscale
+    function toGrayscale(imageData) {
+      const gray = new ImageData(imageData.width, imageData.height);
       const data = imageData.data;
-      
-      // Apply brightness and contrast
-      const factor = (259 * (contrast - 100 + 255)) / (255 * (259 - (contrast - 100)));
+      const grayData = gray.data;
       
       for (let i = 0; i < data.length; i += 4) {
-        // Apply brightness
-        data[i] = data[i] * brightness / 100;
-        data[i + 1] = data[i + 1] * brightness / 100;
-        data[i + 2] = data[i + 2] * brightness / 100;
-        
-        // Apply contrast
-        data[i] = factor * (data[i] - 128) + 128;
-        data[i + 1] = factor * (data[i + 1] - 128) + 128;
-        data[i + 2] = factor * (data[i + 2] - 128) + 128;
+        const avg = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+        grayData[i] = avg;
+        grayData[i + 1] = avg;
+        grayData[i + 2] = avg;
+        grayData[i + 3] = 255;
       }
       
-      // Apply sharpness (simple unsharp mask)
-      if (sharpness > 0) {
-        const sharpnessData = applySharpness(imageData, sharpness / 100);
-        previewCtx.putImageData(sharpnessData, 0, 0);
-      } else {
-        previewCtx.putImageData(imageData, 0, 0);
-      }
+      return gray;
     }
     
-    // Simple sharpness filter
-    function applySharpness(imageData, amount) {
+    // Simple Gaussian blur
+    function gaussianBlur(imageData) {
+      const kernel = [
+        [1, 2, 1],
+        [2, 4, 2],
+        [1, 2, 1]
+      ];
+      const kernelSum = 16;
+      
+      return applyKernel(imageData, kernel, kernelSum);
+    }
+    
+    // Sobel edge detection
+    function sobelEdgeDetection(imageData) {
       const width = imageData.width;
       const height = imageData.height;
-      const output = new ImageData(width, height);
-      const src = imageData.data;
-      const dst = output.data;
-      
-      // Simple sharpen kernel
-      const kernel = [
-        0, -amount, 0,
-        -amount, 1 + 4 * amount, -amount,
-        0, -amount, 0
-      ];
+      const edges = new ImageData(width, height);
+      const data = imageData.data;
+      const edgeData = edges.data;
       
       for (let y = 1; y < height - 1; y++) {
         for (let x = 1; x < width - 1; x++) {
+          let gx = 0, gy = 0;
+          
+          // Apply Sobel kernels
+          for (let ky = -1; ky <= 1; ky++) {
+            for (let kx = -1; kx <= 1; kx++) {
+              const idx = ((y + ky) * width + (x + kx)) * 4;
+              const pixel = data[idx];
+              gx += pixel * sobelX[ky + 1][kx + 1];
+              gy += pixel * sobelY[ky + 1][kx + 1];
+            }
+          }
+          
+          // Calculate gradient magnitude
+          const magnitude = Math.sqrt(gx * gx + gy * gy);
           const idx = (y * width + x) * 4;
           
-          for (let c = 0; c < 3; c++) {
-            let sum = 0;
-            for (let ky = -1; ky <= 1; ky++) {
-              for (let kx = -1; kx <= 1; kx++) {
-                const kidx = ((y + ky) * width + (x + kx)) * 4;
-                sum += src[kidx + c] * kernel[(ky + 1) * 3 + (kx + 1)];
-              }
+          // Apply threshold
+          const value = magnitude > edgeThreshold ? 255 : 0;
+          edgeData[idx] = value;
+          edgeData[idx + 1] = value;
+          edgeData[idx + 2] = value;
+          edgeData[idx + 3] = 255;
+        }
+      }
+      
+      return edges;
+    }
+    
+    // Apply convolution kernel
+    function applyKernel(imageData, kernel, divisor) {
+      const width = imageData.width;
+      const height = imageData.height;
+      const output = new ImageData(width, height);
+      const data = imageData.data;
+      const outData = output.data;
+      
+      for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          let r = 0, g = 0, b = 0;
+          
+          for (let ky = -1; ky <= 1; ky++) {
+            for (let kx = -1; kx <= 1; kx++) {
+              const idx = ((y + ky) * width + (x + kx)) * 4;
+              const weight = kernel[ky + 1][kx + 1];
+              r += data[idx] * weight;
+              g += data[idx + 1] * weight;
+              b += data[idx + 2] * weight;
             }
-            dst[idx + c] = Math.max(0, Math.min(255, sum));
           }
-          dst[idx + 3] = 255; // Alpha
+          
+          const idx = (y * width + x) * 4;
+          outData[idx] = r / divisor;
+          outData[idx + 1] = g / divisor;
+          outData[idx + 2] = b / divisor;
+          outData[idx + 3] = 255;
         }
       }
       
       return output;
     }
     
-    // Auto enhance for documents
-    function autoEnhance() {
-      brightnessSlider.value = 110;
-      contrastSlider.value = 130;
-      sharpnessSlider.value = 30;
-      updateSliderValues();
-      applyFilters();
-      showStatus('Auto-enhanced for documents', 'success');
+    // Simplified line detection
+    function findLines(edges) {
+      const width = edges.width;
+      const height = edges.height;
+      const data = edges.data;
+      const lines = [];
+      
+      // Simplified: Find strong horizontal and vertical edges
+      const minLength = Math.min(width, height) * 0.1;
+      
+      // Horizontal lines
+      for (let y = 10; y < height - 10; y += 5) {
+        let start = -1;
+        for (let x = 0; x < width; x++) {
+          const idx = (y * width + x) * 4;
+          if (data[idx] > 128) {
+            if (start === -1) start = x;
+          } else {
+            if (start !== -1 && x - start > minLength) {
+              lines.push({ x1: start, y1: y, x2: x, y2: y, horizontal: true });
+            }
+            start = -1;
+          }
+        }
+      }
+      
+      // Vertical lines
+      for (let x = 10; x < width - 10; x += 5) {
+        let start = -1;
+        for (let y = 0; y < height; y++) {
+          const idx = (y * width + x) * 4;
+          if (data[idx] > 128) {
+            if (start === -1) start = y;
+          } else {
+            if (start !== -1 && y - start > minLength) {
+              lines.push({ x1: x, y1: start, x2: x, y2: y, vertical: true });
+            }
+            start = -1;
+          }
+        }
+      }
+      
+      return lines;
     }
     
-    // Reset filters
-    function resetFilters() {
-      brightnessSlider.value = 100;
-      contrastSlider.value = 100;
-      sharpnessSlider.value = 0;
-      updateSliderValues();
-      applyFilters();
+    // Find document corners from lines
+    function findDocumentCorners(lines, width, height) {
+      if (lines.length < 4) return null;
+      
+      // Find the most prominent rectangle
+      const margin = 50;
+      const minArea = width * height * minSizePct / 100;
+      
+      // Find candidate boundaries
+      let leftmost = width, rightmost = 0;
+      let topmost = height, bottommost = 0;
+      
+      lines.forEach(line => {
+        if (line.vertical) {
+          if (line.x1 > margin && line.x1 < width - margin) {
+            leftmost = Math.min(leftmost, line.x1);
+            rightmost = Math.max(rightmost, line.x1);
+          }
+        } else {
+          if (line.y1 > margin && line.y1 < height - margin) {
+            topmost = Math.min(topmost, line.y1);
+            bottommost = Math.max(bottommost, line.y1);
+          }
+        }
+      });
+      
+      // Check if we found a valid rectangle
+      const area = (rightmost - leftmost) * (bottommost - topmost);
+      if (area < minArea || leftmost >= rightmost || topmost >= bottommost) {
+        return null;
+      }
+      
+      // Return corners
+      return [
+        { x: leftmost, y: topmost },
+        { x: rightmost, y: topmost },
+        { x: rightmost, y: bottommost },
+        { x: leftmost, y: bottommost }
+      ];
     }
     
-    // Update slider value displays
-    function updateSliderValues() {
-      document.getElementById('brightness-val').textContent = brightnessSlider.value;
-      document.getElementById('contrast-val').textContent = contrastSlider.value;
-      document.getElementById('sharpness-val').textContent = sharpnessSlider.value;
+    // Draw polygon on overlay
+    function drawPolygon(corners, color, lineWidth) {
+      overlayCtx.strokeStyle = color;
+      overlayCtx.lineWidth = lineWidth;
+      overlayCtx.shadowColor = color;
+      overlayCtx.shadowBlur = 10;
+      
+      overlayCtx.beginPath();
+      overlayCtx.moveTo(corners[0].x, corners[0].y);
+      for (let i = 1; i < corners.length; i++) {
+        overlayCtx.lineTo(corners[i].x, corners[i].y);
+      }
+      overlayCtx.closePath();
+      overlayCtx.stroke();
+      
+      // Draw corner points
+      overlayCtx.fillStyle = color;
+      corners.forEach(corner => {
+        overlayCtx.beginPath();
+        overlayCtx.arc(corner.x, corner.y, 8, 0, Math.PI * 2);
+        overlayCtx.fill();
+      });
     }
     
-    // Save document
-    function saveDocument() {
+    // Capture document
+    function captureDocument() {
+      if (!detectedCorners) {
+        // Capture full frame
+        resultCanvas.width = processCanvas.width;
+        resultCanvas.height = processCanvas.height;
+        resultCtx.drawImage(video, 0, 0);
+      } else {
+        // Extract document region
+        const extracted = extractDocument(detectedCorners);
+        resultCanvas.width = extracted.width;
+        resultCanvas.height = extracted.height;
+        resultCtx.putImageData(extracted, 0, 0);
+      }
+      
+      resultDiv.style.display = 'block';
+      resultDiv.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    // Extract document region
+    function extractDocument(corners) {
+      // Find bounding box
+      const minX = Math.min(...corners.map(c => c.x));
+      const maxX = Math.max(...corners.map(c => c.x));
+      const minY = Math.min(...corners.map(c => c.y));
+      const maxY = Math.max(...corners.map(c => c.y));
+      
+      const width = maxX - minX;
+      const height = maxY - minY;
+      
+      // Get the region
+      processCtx.drawImage(video, 0, 0);
+      return processCtx.getImageData(minX, minY, width, height);
+    }
+    
+    // Show debug canvas
+    function showDebugCanvas(canvasId, imageData) {
+      const canvas = document.getElementById(canvasId);
+      canvas.width = imageData.width;
+      canvas.height = imageData.height;
+      const ctx = canvas.getContext('2d');
+      ctx.putImageData(imageData, 0, 0);
+    }
+    
+    // Save result
+    function saveResult() {
       const link = document.createElement('a');
       link.download = `document_${Date.now()}.jpg`;
-      link.href = preview.toDataURL('image/jpeg', 0.95);
+      link.href = resultCanvas.toDataURL('image/jpeg', 0.9);
       link.click();
-      showStatus('Document saved!', 'success');
-    }
-    
-    // Show status message
-    function showStatus(message, type = '') {
-      status.textContent = message;
-      status.className = type;
-      status.style.display = 'block';
-      
-      setTimeout(() => {
-        status.style.display = 'none';
-      }, 3000);
     }
     
     // Event listeners
     captureBtn.addEventListener('click', captureDocument);
-    saveBtn.addEventListener('click', saveDocument);
     
-    brightnessSlider.addEventListener('input', () => {
-      updateSliderValues();
-      applyFilters();
+    autoBtn.addEventListener('click', () => {
+      autoMode = !autoMode;
+      autoBtn.textContent = `Auto Mode: ${autoMode ? 'ON' : 'OFF'}`;
+      if (autoMode) startProcessing();
     });
     
-    contrastSlider.addEventListener('input', () => {
-      updateSliderValues();
-      applyFilters();
+    debugBtn.addEventListener('click', () => {
+      debugMode = !debugMode;
+      debugBtn.textContent = `Debug: ${debugMode ? 'ON' : 'OFF'}`;
+      debugContainer.style.display = debugMode ? 'flex' : 'none';
     });
     
-    sharpnessSlider.addEventListener('input', () => {
-      updateSliderValues();
-      applyFilters();
+    document.getElementById('threshold').addEventListener('input', (e) => {
+      edgeThreshold = parseInt(e.target.value);
+      document.getElementById('threshold-val').textContent = edgeThreshold;
+    });
+    
+    document.getElementById('minsize').addEventListener('input', (e) => {
+      minSizePct = parseInt(e.target.value);
+      document.getElementById('minsize-val').textContent = minSizePct;
     });
     
     // Initialize
