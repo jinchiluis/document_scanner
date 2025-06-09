@@ -16,6 +16,162 @@
     
     <div id="status" style="margin-top: 20px; font-size: 14px; color: #666;"></div>
     
-    <script src="/static/script.js"></script>
+    <script>
+    // Inline the compatible script to avoid path issues
+    console.log('Starting camera initialization...');
+
+    // Function to get user media with fallbacks
+    function getUserMedia(constraints) {
+      // Modern browsers
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        return navigator.mediaDevices.getUserMedia(constraints);
+      }
+      
+      // Older browsers with prefixed versions
+      const getUserMediaFunc = navigator.getUserMedia || 
+                              navigator.webkitGetUserMedia || 
+                              navigator.mozGetUserMedia || 
+                              navigator.msGetUserMedia;
+      
+      if (getUserMediaFunc) {
+        return new Promise((resolve, reject) => {
+          getUserMediaFunc.call(navigator, constraints, resolve, reject);
+        });
+      }
+      
+      // No camera support
+      return Promise.reject(new Error('Camera not supported by this browser'));
+    }
+
+    async function initCamera() {
+      try {
+        console.log('Checking camera support...');
+        
+        // Check if we have any camera API available
+        if (!navigator.mediaDevices && !navigator.getUserMedia && 
+            !navigator.webkitGetUserMedia && !navigator.mozGetUserMedia) {
+          throw new Error('Camera API not supported in this browser. Please use Chrome, Firefox, Safari, or Edge.');
+        }
+        
+        console.log('Requesting camera access...');
+        const stream = await getUserMedia({ 
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'environment'  // Use back camera on mobile
+          } 
+        });
+        
+        const video = document.getElementById('video');
+        
+        // Set video source (different methods for different browsers)
+        if (video.srcObject !== undefined) {
+          video.srcObject = stream;
+        } else if (video.mozSrcObject !== undefined) {
+          video.mozSrcObject = stream;
+        } else if (window.URL && window.URL.createObjectURL) {
+          video.src = window.URL.createObjectURL(stream);
+        } else {
+          video.src = stream;
+        }
+        
+        // Wait for video to be ready
+        video.onloadedmetadata = () => {
+          console.log('Video metadata loaded, starting playback...');
+          video.play().then(() => {
+            console.log('Video is now playing');
+            document.getElementById('snap').disabled = false;
+            document.getElementById('snap').textContent = 'Capture Document';
+          }).catch(err => {
+            console.error('Error playing video:', err);
+            video.play();
+            document.getElementById('snap').disabled = false;
+            document.getElementById('snap').textContent = 'Capture Document';
+          });
+        };
+        
+        window.currentStream = stream;
+        
+      } catch (err) {
+        console.error('Error accessing camera:', err);
+        
+        const video = document.getElementById('video');
+        video.style.display = 'none';
+        
+        const errorDiv = document.createElement('div');
+        errorDiv.style.color = 'red';
+        errorDiv.style.padding = '20px';
+        
+        let errorMessage = err.message;
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          errorMessage = 'Camera access denied. Please allow camera access and refresh the page.';
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+          errorMessage = 'No camera found. Please make sure your device has a camera.';
+        } else if (err.name === 'NotSupportedError') {
+          errorMessage = 'Camera not supported. For mobile access, please use HTTPS.';
+        }
+        
+        errorDiv.innerHTML = `
+          <h3>🚫 Camera Error</h3>
+          <p><strong>${errorMessage}</strong></p>
+          <p>For mobile devices, you need HTTPS access.</p>
+          <p>Try: <strong>Chrome on Android</strong> or <strong>Safari on iPhone</strong></p>
+          <button onclick="location.reload()" style="margin-top: 10px; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px;">Try Again</button>
+        `;
+        video.parentNode.insertBefore(errorDiv, video);
+      }
+    }
+
+    // Initialize camera when page loads
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initCamera);
+    } else {
+      initCamera();
+    }
+
+    // Capture function
+    document.addEventListener('DOMContentLoaded', () => {
+      const snapBtn = document.getElementById('snap');
+      
+      snapBtn.onclick = () => {
+        const canvas = document.getElementById('canvas');
+        const video = document.getElementById('video');
+        
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+          alert('Video not ready yet. Please wait for camera to initialize.');
+          return;
+        }
+        
+        snapBtn.disabled = true;
+        snapBtn.textContent = 'Capturing...';
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+
+        const dataURL = canvas.toDataURL('image/png');
+        
+        fetch('/save-image', {
+          method: 'POST',
+          body: JSON.stringify({ image: dataURL }),
+          headers: { 'Content-Type': 'application/json' }
+        })
+        .then(resp => resp.json())
+        .then(data => {
+          console.log('Saved successfully:', data);
+          alert('✅ Document captured and saved!');
+          snapBtn.textContent = 'Capture Document';
+          snapBtn.disabled = false;
+        })
+        .catch(err => {
+          console.error('Error saving image:', err);
+          alert('❌ Error saving image.');
+          snapBtn.textContent = 'Capture Document';
+          snapBtn.disabled = false;
+        });
+      };
+    });
+    </script>
 </body>
 </html>
