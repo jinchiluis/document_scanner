@@ -3,26 +3,61 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Document Edge Detector</title>
+  <title>Document Scanner Pro</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
     body { 
-      font-family: system-ui, sans-serif; 
-      background: #1a1a1a; 
-      margin: 0; 
-      padding: 10px; 
-      text-align: center; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
+      min-height: 100vh;
       color: #fff;
+      overflow-x: hidden;
+    }
+    
+    header {
+      padding: 20px;
+      text-align: center;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 5px;
+    }
+    
+    .subtitle {
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+    }
+    
+    #camera-section {
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
     }
     
     #camera-container { 
       position: relative; 
-      display: inline-block; 
-      max-width: 100%;
+      background: #000;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      margin-bottom: 30px;
     }
     
     video, canvas { 
-      max-width: 100%;
-      border-radius: 10px;
+      width: 100%;
       display: block;
     }
     
@@ -30,167 +65,388 @@
       position: absolute;
       top: 0;
       left: 0;
+      width: 100%;
+      height: 100%;
       pointer-events: none;
       z-index: 10;
     }
     
+    #status-badge {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 10px 20px;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(10px);
+      border-radius: 30px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.3s ease;
+    }
+    
+    #status-badge.detected {
+      background: rgba(0,255,0,0.2);
+      border: 1px solid rgba(0,255,0,0.5);
+      color: #00ff00;
+    }
+    
+    .pulse {
+      width: 8px;
+      height: 8px;
+      background: currentColor;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    
     #controls {
-      margin: 20px 0;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 30px;
     }
     
     button {
-      font-size: 1rem;
-      padding: 12px 25px;
-      margin: 5px;
-      border-radius: 25px;
+      padding: 15px 30px;
+      border-radius: 30px;
       border: none;
-      background: #007bff;
-      color: #fff;
+      font-size: 16px;
+      font-weight: 500;
       cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .primary-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .primary-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+    
+    .secondary-btn {
+      background: rgba(255,255,255,0.1);
+      color: white;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .secondary-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    .secondary-btn.active {
+      background: rgba(255,255,255,0.2);
+      border-color: #667eea;
+      color: #667eea;
     }
     
     button:disabled {
-      background: #555;
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    #settings {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 30px;
+      border: 1px solid rgba(255,255,255,0.1);
     }
     
     .slider-group {
-      margin: 10px 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
+      margin: 15px 0;
     }
     
-    .slider-group label {
-      min-width: 120px;
-      text-align: right;
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .slider-label {
       font-size: 14px;
+      color: rgba(255,255,255,0.8);
+    }
+    
+    .slider-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #667eea;
+      min-width: 40px;
+      text-align: right;
     }
     
     input[type="range"] {
-      width: 150px;
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      outline: none;
+      -webkit-appearance: none;
     }
     
-    #status {
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #667eea;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+    }
+    
+    #debug-section {
+      display: none;
+      margin: 30px auto;
+      max-width: 800px;
+      padding: 20px;
+    }
+    
+    #debug-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+    
+    .debug-item {
+      text-align: center;
+    }
+    
+    .debug-label {
+      font-size: 14px;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 10px;
+    }
+    
+    .debug-canvas {
+      width: 100%;
+      border-radius: 10px;
+      border: 2px solid rgba(255,255,255,0.1);
+    }
+    
+    #result-section {
+      display: none;
+      max-width: 800px;
+      margin: 30px auto;
+      padding: 20px;
+    }
+    
+    #result-container {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      border: 1px solid rgba(255,255,255,0.1);
+      text-align: center;
+    }
+    
+    #result-canvas {
+      width: 100%;
+      max-width: 500px;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      margin: 20px auto;
+    }
+    
+    .result-actions {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    
+    #toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      padding: 15px 30px;
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(10px);
+      border-radius: 30px;
+      font-size: 14px;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    
+    #toast.success {
+      background: rgba(0,255,0,0.2);
+      border: 1px solid rgba(0,255,0,0.5);
+      color: #00ff00;
+    }
+    
+    #toast.error {
+      background: rgba(255,0,0,0.2);
+      border: 1px solid rgba(255,0,0,0.5);
+      color: #ff6b6b;
+    }
+    
+    #process-canvas {
+      display: none;
+    }
+    
+    .icon {
+      width: 20px;
+      height: 20px;
+    }
+    
+    #scan-count {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      padding: 8px 15px;
-      background: rgba(0,0,0,0.8);
+      top: 20px;
+      right: 20px;
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      padding: 10px 20px;
       border-radius: 20px;
       font-size: 14px;
       z-index: 20;
     }
-    
-    #status.detected {
-      background: rgba(0,200,0,0.9);
-    }
-    
-    #debug-container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-      margin: 20px 0;
-    }
-    
-    .debug-canvas {
-      border: 2px solid #444;
-      border-radius: 5px;
-      max-width: 150px;
-    }
-    
-    #result {
-      margin: 20px auto;
-      max-width: 400px;
-    }
-    
-    #result canvas {
-      width: 100%;
-      border: 2px solid #0f0;
-    }
   </style>
 </head>
 <body>
-  <h1>📄 Smart Document Scanner</h1>
+  <header>
+    <h1>Document Scanner Pro</h1>
+    <p class="subtitle">Capture documents with automatic edge detection</p>
+  </header>
   
-  <div id="camera-container">
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="overlay"></canvas>
-    <div id="status">Initializing...</div>
-  </div>
-  
-  <div id="controls">
-    <button id="capture-btn" disabled>Initializing...</button>
-    <button id="auto-btn">Auto Mode: ON</button>
-    <button id="debug-btn">Debug: OFF</button>
-  </div>
-  
-  <div class="slider-group">
-    <label>Edge Threshold:</label>
-    <input type="range" id="threshold" min="10" max="100" value="30">
-    <span id="threshold-val">30</span>
-  </div>
-  
-  <div class="slider-group">
-    <label>Min Size %:</label>
-    <input type="range" id="minsize" min="10" max="50" value="20">
-    <span id="minsize-val">20</span>
-  </div>
-  
-  <div id="debug-container" style="display:none;">
-    <div>
-      <div>Grayscale</div>
-      <canvas id="debug-gray" class="debug-canvas"></canvas>
+  <section id="camera-section">
+    <div id="camera-container">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      <div id="status-badge">
+        <div class="pulse"></div>
+        <span id="status-text">Initializing...</span>
+      </div>
+      <div id="scan-count">Scans: <span id="count">0</span></div>
     </div>
-    <div>
-      <div>Edges</div>
-      <canvas id="debug-edge" class="debug-canvas"></canvas>
+    
+    <div id="controls">
+      <button id="capture-btn" class="primary-btn" disabled>
+        <span>📸</span>
+        <span>Initializing...</span>
+      </button>
+      <button id="auto-btn" class="secondary-btn active">
+        <span>🔄</span>
+        <span>Auto Mode: ON</span>
+      </button>
+      <button id="debug-btn" class="secondary-btn">
+        <span>🔧</span>
+        <span>Debug: OFF</span>
+      </button>
     </div>
-  </div>
+    
+    <div id="settings">
+      <div class="slider-group">
+        <div class="slider-header">
+          <span class="slider-label">Edge Detection Sensitivity</span>
+          <span class="slider-value" id="threshold-val">30</span>
+        </div>
+        <input type="range" id="threshold" min="10" max="100" value="30">
+      </div>
+      
+      <div class="slider-group">
+        <div class="slider-header">
+          <span class="slider-label">Minimum Document Size</span>
+          <span class="slider-value"><span id="minsize-val">20</span>%</span>
+        </div>
+        <input type="range" id="minsize" min="10" max="50" value="20">
+      </div>
+    </div>
+  </section>
   
-  <div id="result" style="display:none;">
-    <h3>Captured Document</h3>
-    <canvas id="result-canvas"></canvas>
-    <br>
-    <button onclick="saveResult()">💾 Save</button>
-  </div>
+  <section id="debug-section">
+    <div id="debug-container">
+      <div class="debug-item">
+        <div class="debug-label">Grayscale</div>
+        <canvas id="debug-gray" class="debug-canvas"></canvas>
+      </div>
+      <div class="debug-item">
+        <div class="debug-label">Edge Detection</div>
+        <canvas id="debug-edge" class="debug-canvas"></canvas>
+      </div>
+    </div>
+  </section>
   
-  <canvas id="process" style="display:none;"></canvas>
+  <section id="result-section">
+    <div id="result-container">
+      <h2>Captured Document</h2>
+      <canvas id="result-canvas"></canvas>
+      <div class="result-actions">
+        <button onclick="saveToServer()" class="primary-btn">
+          <span>💾</span>
+          <span>Save to PC</span>
+        </button>
+        <button onclick="retake()" class="secondary-btn">
+          <span>🔄</span>
+          <span>Retake</span>
+        </button>
+      </div>
+    </div>
+  </section>
+  
+  <canvas id="process-canvas"></canvas>
+  <div id="toast"></div>
   
   <script>
+    // Elements
     const video = document.getElementById('video');
     const overlay = document.getElementById('overlay');
     const overlayCtx = overlay.getContext('2d');
-    const processCanvas = document.getElementById('process');
+    const processCanvas = document.getElementById('process-canvas');
     const processCtx = processCanvas.getContext('2d');
     const captureBtn = document.getElementById('capture-btn');
     const autoBtn = document.getElementById('auto-btn');
     const debugBtn = document.getElementById('debug-btn');
-    const status = document.getElementById('status');
-    const debugContainer = document.getElementById('debug-container');
-    const resultDiv = document.getElementById('result');
+    const statusText = document.getElementById('status-text');
+    const statusBadge = document.getElementById('status-badge');
+    const debugSection = document.getElementById('debug-section');
+    const resultSection = document.getElementById('result-section');
     const resultCanvas = document.getElementById('result-canvas');
     const resultCtx = resultCanvas.getContext('2d');
+    const scanCount = document.getElementById('count');
     
+    // State
     let autoMode = true;
     let debugMode = false;
     let isProcessing = false;
     let detectedCorners = null;
     let edgeThreshold = 30;
     let minSizePct = 20;
+    let totalScans = 0;
     
-    // Sobel kernels for edge detection
-    const sobelX = [
-      [-1, 0, 1],
-      [-2, 0, 2],
-      [-1, 0, 1]
-    ];
-    const sobelY = [
-      [-1, -2, -1],
-      [0, 0, 0],
-      [1, 2, 1]
-    ];
+    // Edge detection kernels
+    const sobelX = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
+    const sobelY = [[-1, -2, -1], [0, 0, 0], [1, 2, 1]];
     
     // Initialize camera
     async function initCamera() {
@@ -198,8 +454,8 @@
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { 
             facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
           }
         });
         
@@ -209,14 +465,14 @@
           setTimeout(() => {
             setupCanvases();
             captureBtn.disabled = false;
-            captureBtn.textContent = '📸 Capture';
-            status.textContent = 'Ready';
+            captureBtn.innerHTML = '<span>📸</span><span>Capture</span>';
+            statusText.textContent = 'Ready';
             if (autoMode) startProcessing();
           }, 500);
         };
       } catch (err) {
-        status.textContent = 'Camera error';
-        console.error(err);
+        showToast('Camera access denied', 'error');
+        statusText.textContent = 'Camera error';
       }
     }
     
@@ -227,16 +483,11 @@
       overlay.height = h;
       processCanvas.width = w;
       processCanvas.height = h;
-      
-      // Set overlay size to match video
-      overlay.style.width = video.clientWidth + 'px';
-      overlay.style.height = video.clientHeight + 'px';
     }
     
-    // Main processing loop
+    // Processing loop
     function startProcessing() {
       if (!autoMode || isProcessing) return;
-      
       detectEdges();
       requestAnimationFrame(startProcessing);
     }
@@ -245,61 +496,38 @@
     function detectEdges() {
       isProcessing = true;
       
-      // Draw video frame
       processCtx.drawImage(video, 0, 0);
       const imageData = processCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
       
-      // Convert to grayscale
       const gray = toGrayscale(imageData);
-      
-      // Apply Gaussian blur to reduce noise
       const blurred = gaussianBlur(gray);
-      
-      // Detect edges using Sobel
       const edges = sobelEdgeDetection(blurred);
       
-      // Show debug canvases
       if (debugMode) {
         showDebugCanvas('debug-gray', gray);
         showDebugCanvas('debug-edge', edges);
       }
       
-      // Find lines using simplified Hough transform
       const lines = findLines(edges);
-      
-      // Find document corners
       const corners = findDocumentCorners(lines, processCanvas.width, processCanvas.height);
       
-      // Draw overlay
       overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
       
       if (corners && corners.length === 4) {
         detectedCorners = corners;
         drawPolygon(corners, '#00ff00', 3);
-        status.textContent = 'Document detected!';
-        status.classList.add('detected');
+        statusText.textContent = 'Document detected';
+        statusBadge.classList.add('detected');
       } else {
         detectedCorners = null;
-        status.textContent = 'Searching...';
-        status.classList.remove('detected');
-      }
-      
-      // Draw all detected lines for debugging
-      if (debugMode && lines.length > 0) {
-        overlayCtx.strokeStyle = 'rgba(255, 255, 0, 0.3)';
-        overlayCtx.lineWidth = 1;
-        lines.forEach(line => {
-          overlayCtx.beginPath();
-          overlayCtx.moveTo(line.x1, line.y1);
-          overlayCtx.lineTo(line.x2, line.y2);
-          overlayCtx.stroke();
-        });
+        statusText.textContent = 'Searching...';
+        statusBadge.classList.remove('detected');
       }
       
       isProcessing = false;
     }
     
-    // Convert to grayscale
+    // Image processing functions
     function toGrayscale(imageData) {
       const gray = new ImageData(imageData.width, imageData.height);
       const data = imageData.data;
@@ -307,28 +535,18 @@
       
       for (let i = 0; i < data.length; i += 4) {
         const avg = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
-        grayData[i] = avg;
-        grayData[i + 1] = avg;
-        grayData[i + 2] = avg;
+        grayData[i] = grayData[i + 1] = grayData[i + 2] = avg;
         grayData[i + 3] = 255;
       }
       
       return gray;
     }
     
-    // Simple Gaussian blur
     function gaussianBlur(imageData) {
-      const kernel = [
-        [1, 2, 1],
-        [2, 4, 2],
-        [1, 2, 1]
-      ];
-      const kernelSum = 16;
-      
-      return applyKernel(imageData, kernel, kernelSum);
+      const kernel = [[1, 2, 1], [2, 4, 2], [1, 2, 1]];
+      return applyKernel(imageData, kernel, 16);
     }
     
-    // Sobel edge detection
     function sobelEdgeDetection(imageData) {
       const width = imageData.width;
       const height = imageData.height;
@@ -340,7 +558,6 @@
         for (let x = 1; x < width - 1; x++) {
           let gx = 0, gy = 0;
           
-          // Apply Sobel kernels
           for (let ky = -1; ky <= 1; ky++) {
             for (let kx = -1; kx <= 1; kx++) {
               const idx = ((y + ky) * width + (x + kx)) * 4;
@@ -350,15 +567,10 @@
             }
           }
           
-          // Calculate gradient magnitude
           const magnitude = Math.sqrt(gx * gx + gy * gy);
           const idx = (y * width + x) * 4;
-          
-          // Apply threshold
           const value = magnitude > edgeThreshold ? 255 : 0;
-          edgeData[idx] = value;
-          edgeData[idx + 1] = value;
-          edgeData[idx + 2] = value;
+          edgeData[idx] = edgeData[idx + 1] = edgeData[idx + 2] = value;
           edgeData[idx + 3] = 255;
         }
       }
@@ -366,7 +578,6 @@
       return edges;
     }
     
-    // Apply convolution kernel
     function applyKernel(imageData, kernel, divisor) {
       const width = imageData.width;
       const height = imageData.height;
@@ -399,17 +610,14 @@
       return output;
     }
     
-    // Simplified line detection
     function findLines(edges) {
       const width = edges.width;
       const height = edges.height;
       const data = edges.data;
       const lines = [];
-      
-      // Simplified: Find strong horizontal and vertical edges
       const minLength = Math.min(width, height) * 0.1;
       
-      // Horizontal lines
+      // Find horizontal lines
       for (let y = 10; y < height - 10; y += 5) {
         let start = -1;
         for (let x = 0; x < width; x++) {
@@ -425,7 +633,7 @@
         }
       }
       
-      // Vertical lines
+      // Find vertical lines
       for (let x = 10; x < width - 10; x += 5) {
         let start = -1;
         for (let y = 0; y < height; y++) {
@@ -444,39 +652,30 @@
       return lines;
     }
     
-    // Find document corners from lines
     function findDocumentCorners(lines, width, height) {
       if (lines.length < 4) return null;
       
-      // Find the most prominent rectangle
       const margin = 50;
       const minArea = width * height * minSizePct / 100;
       
-      // Find candidate boundaries
       let leftmost = width, rightmost = 0;
       let topmost = height, bottommost = 0;
       
       lines.forEach(line => {
-        if (line.vertical) {
-          if (line.x1 > margin && line.x1 < width - margin) {
-            leftmost = Math.min(leftmost, line.x1);
-            rightmost = Math.max(rightmost, line.x1);
-          }
-        } else {
-          if (line.y1 > margin && line.y1 < height - margin) {
-            topmost = Math.min(topmost, line.y1);
-            bottommost = Math.max(bottommost, line.y1);
-          }
+        if (line.vertical && line.x1 > margin && line.x1 < width - margin) {
+          leftmost = Math.min(leftmost, line.x1);
+          rightmost = Math.max(rightmost, line.x1);
+        } else if (line.horizontal && line.y1 > margin && line.y1 < height - margin) {
+          topmost = Math.min(topmost, line.y1);
+          bottommost = Math.max(bottommost, line.y1);
         }
       });
       
-      // Check if we found a valid rectangle
       const area = (rightmost - leftmost) * (bottommost - topmost);
       if (area < minArea || leftmost >= rightmost || topmost >= bottommost) {
         return null;
       }
       
-      // Return corners
       return [
         { x: leftmost, y: topmost },
         { x: rightmost, y: topmost },
@@ -485,7 +684,6 @@
       ];
     }
     
-    // Draw polygon on overlay
     function drawPolygon(corners, color, lineWidth) {
       overlayCtx.strokeStyle = color;
       overlayCtx.lineWidth = lineWidth;
@@ -500,7 +698,6 @@
       overlayCtx.closePath();
       overlayCtx.stroke();
       
-      // Draw corner points
       overlayCtx.fillStyle = color;
       corners.forEach(corner => {
         overlayCtx.beginPath();
@@ -509,42 +706,6 @@
       });
     }
     
-    // Capture document
-    function captureDocument() {
-      if (!detectedCorners) {
-        // Capture full frame
-        resultCanvas.width = processCanvas.width;
-        resultCanvas.height = processCanvas.height;
-        resultCtx.drawImage(video, 0, 0);
-      } else {
-        // Extract document region
-        const extracted = extractDocument(detectedCorners);
-        resultCanvas.width = extracted.width;
-        resultCanvas.height = extracted.height;
-        resultCtx.putImageData(extracted, 0, 0);
-      }
-      
-      resultDiv.style.display = 'block';
-      resultDiv.scrollIntoView({ behavior: 'smooth' });
-    }
-    
-    // Extract document region
-    function extractDocument(corners) {
-      // Find bounding box
-      const minX = Math.min(...corners.map(c => c.x));
-      const maxX = Math.max(...corners.map(c => c.x));
-      const minY = Math.min(...corners.map(c => c.y));
-      const maxY = Math.max(...corners.map(c => c.y));
-      
-      const width = maxX - minX;
-      const height = maxY - minY;
-      
-      // Get the region
-      processCtx.drawImage(video, 0, 0);
-      return processCtx.getImageData(minX, minY, width, height);
-    }
-    
-    // Show debug canvas
     function showDebugCanvas(canvasId, imageData) {
       const canvas = document.getElementById(canvasId);
       canvas.width = imageData.width;
@@ -553,12 +714,75 @@
       ctx.putImageData(imageData, 0, 0);
     }
     
-    // Save result
-    function saveResult() {
-      const link = document.createElement('a');
-      link.download = `document_${Date.now()}.jpg`;
-      link.href = resultCanvas.toDataURL('image/jpeg', 0.9);
-      link.click();
+    // Capture and save functions
+    function captureDocument() {
+      if (!detectedCorners) {
+        resultCanvas.width = processCanvas.width;
+        resultCanvas.height = processCanvas.height;
+        resultCtx.drawImage(video, 0, 0);
+      } else {
+        const extracted = extractDocument(detectedCorners);
+        resultCanvas.width = extracted.width;
+        resultCanvas.height = extracted.height;
+        resultCtx.putImageData(extracted, 0, 0);
+      }
+      
+      resultSection.style.display = 'block';
+      resultSection.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function extractDocument(corners) {
+      const minX = Math.min(...corners.map(c => c.x));
+      const maxX = Math.max(...corners.map(c => c.x));
+      const minY = Math.min(...corners.map(c => c.y));
+      const maxY = Math.max(...corners.map(c => c.y));
+      
+      const width = maxX - minX;
+      const height = maxY - minY;
+      
+      processCtx.drawImage(video, 0, 0);
+      return processCtx.getImageData(minX, minY, width, height);
+    }
+    
+    async function saveToServer() {
+      try {
+        const dataURL = resultCanvas.toDataURL('image/jpeg', 0.95);
+        
+        const response = await fetch('/save-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: dataURL })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          totalScans++;
+          scanCount.textContent = totalScans;
+          showToast('Document saved to PC!', 'success');
+          setTimeout(() => retake(), 2000);
+        } else {
+          throw new Error('Server error');
+        }
+      } catch (err) {
+        showToast('Failed to save. Is the server running?', 'error');
+        console.error('Save error:', err);
+      }
+    }
+    
+    function retake() {
+      resultSection.style.display = 'none';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    function showToast(message, type = '') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = type;
+      toast.classList.add('show');
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
     }
     
     // Event listeners
@@ -566,14 +790,16 @@
     
     autoBtn.addEventListener('click', () => {
       autoMode = !autoMode;
-      autoBtn.textContent = `Auto Mode: ${autoMode ? 'ON' : 'OFF'}`;
+      autoBtn.classList.toggle('active');
+      autoBtn.innerHTML = `<span>🔄</span><span>Auto Mode: ${autoMode ? 'ON' : 'OFF'}</span>`;
       if (autoMode) startProcessing();
     });
     
     debugBtn.addEventListener('click', () => {
       debugMode = !debugMode;
-      debugBtn.textContent = `Debug: ${debugMode ? 'ON' : 'OFF'}`;
-      debugContainer.style.display = debugMode ? 'flex' : 'none';
+      debugBtn.classList.toggle('active');
+      debugBtn.innerHTML = `<span>🔧</span><span>Debug: ${debugMode ? 'ON' : 'OFF'}</span>`;
+      debugSection.style.display = debugMode ? 'block' : 'none';
     });
     
     document.getElementById('threshold').addEventListener('input', (e) => {
