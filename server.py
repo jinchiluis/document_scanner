@@ -6,6 +6,8 @@ import socket
 import uvicorn
 from datetime import datetime
 from pathlib import Path
+import subprocess
+import os
 
 app = FastAPI()
 
@@ -39,16 +41,35 @@ if __name__ == "__main__":
     local_ip = get_local_ip()
     port = 8000
 
+    cert_file = Path("cert.pem")
+    key_file = Path("key.pem")
+
+    if not cert_file.exists() or not key_file.exists():
+        print("Generating self-signed certificate for HTTPS...")
+        subprocess.run([
+            "openssl", "req", "-x509", "-newkey", "rsa:4096",
+            "-keyout", str(key_file), "-out", str(cert_file),
+            "-days", "365", "-nodes", "-subj",
+            "/C=US/ST=State/L=City/O=Organization/CN=localhost"
+        ], check=True)
+
     print("=" * 60)
     print("\U0001F4F1 DOCUMENT SCANNER SERVER STARTING")
     print("=" * 60)
-    print(f"\U0001F5A5\FE0F  Local access: http://localhost:{port}")
-    print(f"\U0001F4F1 Phone access: http://{local_ip}:{port}")
+    print(f"\U0001F5A5\FE0F  Local access: https://localhost:{port}")
+    print(f"\U0001F4F1 Phone access: https://{local_ip}:{port}")
     print("=" * 60)
     print("\U0001F4CB Instructions:")
     print("1. Make sure your phone is on the same WiFi network")
     print("2. Open the phone URL in your mobile browser")
     print("3. Allow camera permissions when prompted")
+    print("4. You may need to accept the self-signed certificate warning")
     print("=" * 60)
 
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=port,
+        ssl_keyfile=str(key_file),
+        ssl_certfile=str(cert_file),
+    )
