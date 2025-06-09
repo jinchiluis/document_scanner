@@ -6,15 +6,14 @@ import uvicorn
 from datetime import datetime
 from pathlib import Path
 import socket
-import ssl
-import tempfile
+import subprocess
 import os
+import sys
 
 app = FastAPI()
 
 # Path to camera-scanner folder
 frontend_dir = Path(__file__).resolve().parent / "camera-scanner"
-print(f"Serving files from: {frontend_dir}")
 
 # Create saved_docs folder
 SAVE_DIR = Path(__file__).resolve().parent / "saved_docs"
@@ -55,121 +54,120 @@ def get_local_ip():
     except:
         return "127.0.0.1"
 
-def create_simple_cert():
-    """Create a simple self-signed certificate using Python"""
+def create_cert_with_openssl():
+    """Create certificate using OpenSSL if available"""
     try:
-        # Try to use cryptography library
-        from cryptography import x509
-        from cryptography.x509.oid import NameOID
-        from cryptography.hazmat.primitives import hashes, serialization
-        from cryptography.hazmat.primitives.asymmetric import rsa
-        import datetime as dt
-        
-        # Generate private key
-        private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-        )
-        
-        # Get local IP for certificate
         local_ip = get_local_ip()
         
-        # Create certificate
-        subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, local_ip),
-        ])
+        # Create OpenSSL config for IP address
+        config_content = f"""[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = US
+ST = State
+L = City
+O = Organization
+CN = {local_ip}
+
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+IP.1 = {local_ip}
+IP.2 = 127.0.0.1
+"""
         
-        cert = x509.CertificateBuilder().subject_name(
-            subject
-        ).issuer_name(
-            issuer
-        ).public_key(
-            private_key.public_key()
-        ).serial_number(
-            x509.random_serial_number()
-        ).not_valid_before(
-            dt.datetime.utcnow()
-        ).not_valid_after(
-            dt.datetime.utcnow() + dt.timedelta(days=30)
-        ).add_extension(
-            x509.SubjectAlternativeName([
-                x509.DNSName("localhost"),
-                x509.IPAddress(local_ip),
-            ]),
-            critical=False,
-        ).sign(private_key, hashes.SHA256())
+        with open("cert_config.conf", "w") as f:
+            f.write(config_content)
         
-        # Save certificate and key
-        cert_file = "mobile_cert.pem"
-        key_file = "mobile_key.pem"
+        # Generate certificate
+        cmd = [
+            "openssl", "req", "-x509", "-newkey", "rsa:2048", 
+            "-keyout", "server_key.pem", "-out", "server_cert.pem", 
+            "-days", "30", "-nodes", "-config", "cert_config.conf", 
+            "-extensions", "v3_req"
+        ]
         
-        with open(cert_file, "wb") as f:
-            f.write(cert.public_bytes(serialization.Encoding.PEM))
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            return "server_cert.pem", "server_key.pem"
+        else:
+            print(f"OpenSSL error: {result.stderr}")
+            return None, None
             
-        with open(key_file, "wb") as f:
-            f.write(private_key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.PKCS8,
-                encryption_algorithm=serialization.NoEncryption()
-            ))
-        
-        return cert_file, key_file
-        
-    except ImportError:
-        print("❌ cryptography library not found.")
-        print("📦 Install with: pip install cryptography")
-        return None, None
     except Exception as e:
-        print(f"❌ Error creating certificate: {e}")
+        print(f"Error with OpenSSL: {e}")
         return None, None
 
 if __name__ == "__main__":
     local_ip = get_local_ip()
     port = 8000
     
-    print("🔒 Setting up HTTPS for mobile camera access...")
+    print("🚀 Starting Document Scanner Server...")
     
-    # Try to create or use existing certificates
-    cert_file = "mobile_cert.pem"
-    key_file = "mobile_key.pem"
+    # Try to create HTTPS first
+    cert_file = "server_cert.pem"
+    key_file = "server_key.pem"
     
-    if not os.path.exists(cert_file) or not os.path.exists(key_file):
-        print("📜 Creating SSL certificate...")
-        cert_file, key_file = create_simple_cert()
+    # Method 1: Try with existing certificates
+    if os.path.exists(cert_file) and os.path.exists(key_file):
+        print("📜 Using existing certificates...")
+        use_https = True
+    else:
+        # Method 2: Try to create with OpenSSL
+        print("📜 Creating new certificates...")
+        cert_file, key_file = create_cert_with_openssl()
+        use_https = cert_file is not None
     
-    if cert_file and key_file and os.path.exists(cert_file):
+    if use_https and cert_file and os.path.exists(cert_file):
         print("=" * 60)
-        print("🔒 HTTPS MOBILE DOCUMENT SCANNER READY!")
+        print("🔒 HTTPS SERVER STARTING...")
         print("=" * 60)
-        print(f"📱 Phone Access: https://{local_ip}:{port}")
+        print(f"📱 Phone URL: https://{local_ip}:{port}")
+        print("🖥️  PC URL: https://127.0.0.1:{port}")
         print("=" * 60)
-        print("📋 Instructions:")
-        print("1. Make sure your phone and PC are on the same WiFi")
-        print("2. Open Chrome on your phone")
-        print(f"3. Go to: https://{local_ip}:{port}")
-        print("4. You'll see a security warning - this is normal!")
-        print("5. Click 'Advanced' then 'Proceed to [IP address]'")
-        print("6. Allow camera access when prompted")
-        print("7. Start scanning documents! 📄")
-        print("=" * 60)
-        print("⚠️  Security Warning Expected:")
-        print("   Your browser will show 'Not Secure' - that's normal")
-        print("   for self-signed certificates. Just proceed anyway.")
+        print("📱 PHONE INSTRUCTIONS:")
+        print("1. Open Chrome on your phone")
+        print(f"2. Go to: https://{local_ip}:{port}")
+        print("3. You'll see 'Your connection is not private'")
+        print("4. Click 'Advanced'")
+        print("5. Click 'Proceed to [IP] (unsafe)'")
+        print("6. Allow camera when prompted")
         print("=" * 60)
         
-        # Run HTTPS server
+        try:
+            uvicorn.run(
+                "server:app",
+                host="0.0.0.0",
+                port=port,
+                ssl_keyfile=key_file,
+                ssl_certfile=cert_file,
+                log_level="info"
+            )
+        except Exception as e:
+            print(f"❌ HTTPS failed: {e}")
+            print("🔄 Falling back to HTTP...")
+            use_https = False
+    
+    if not use_https:
+        print("=" * 60)
+        print("📡 HTTP SERVER (Limited Mobile Support)")
+        print("=" * 60)
+        print(f"🖥️  PC: http://127.0.0.1:{port}")
+        print(f"📱 Phone: http://{local_ip}:{port}")
+        print("⚠️  Camera may not work on mobile over HTTP")
+        print("=" * 60)
+        
         uvicorn.run(
             "server:app",
             host="0.0.0.0",
             port=port,
-            ssl_keyfile=key_file,
-            ssl_certfile=cert_file,
-            reload=False  # Disable reload for HTTPS
+            log_level="info"
         )
-    else:
-        print("❌ Could not create HTTPS certificate.")
-        print("📦 Please install: pip install cryptography")
-        print("🔄 Falling back to HTTP...")
-        print(f"📱 Try: http://{local_ip}:{port} (may not work on mobile)")
-        
-        uvicorn.run("server:app", host="0.0.0.0", port=port, reload=True)
