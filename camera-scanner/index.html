@@ -3,485 +3,197 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Document Scanner Debug</title>
+  <title>Scanner Diagnostic</title>
   <style>
-    body { font-family: system-ui, sans-serif; background: #f5f5f5; margin: 0; padding: 24px; text-align: center; }
-    #camera-container { position: relative; display: inline-block; background: #111; border-radius: 12px; margin-bottom: 20px; }
-    video, canvas { max-width: 90vw; border-radius: 12px; display: block; }
-    #overlay { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 10; }
-    #controls { margin: 16px 0; }
-    button { font-size: 1rem; padding: 12px 28px; margin: 5px; border-radius: 7px; border: none; background: #007bff; color: #fff; cursor: pointer; }
-    button:disabled { background: #aaa; }
-    .status { margin: 18px auto; padding: 12px; border-radius: 8px; max-width: 320px; }
-    .status.success { background: #e8ffe8; color: #228c22; }
-    .status.error { background: #ffeaea; color: #d60000; }
-    .slider-group { margin: 14px 0; }
-    .slider-group label { font-size: 0.95em; margin-right: 12px; }
-    #preview { margin: 28px auto; max-width: 320px; display: none; }
-    #preview img { width: 100%; border-radius: 8px; border: 2px solid #333; }
-    #detection-label { position: absolute; top: 10px; left: 10px; padding: 5px 14px; border-radius: 5px; background: rgba(0,0,0,0.7); color: #fff; font-size: 1em; z-index: 20; }
-    #detection-label.detected { background: rgba(33,200,70,0.88); }
-    
-    /* Debug canvases */
-    #debug-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
-    .debug-canvas { border: 2px solid #333; border-radius: 8px; max-width: 200px; }
-    .debug-label { font-size: 12px; font-weight: bold; margin-bottom: 5px; }
-    #stats { background: #333; color: #0f0; padding: 10px; border-radius: 5px; font-family: monospace; text-align: left; max-width: 600px; margin: 20px auto; }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; text-align: center; }
+    #video { max-width: 90vw; max-height: 50vh; border: 3px solid #333; border-radius: 10px; background: #000; }
+    #canvas { max-width: 90vw; max-height: 30vh; border: 3px solid #00f; border-radius: 10px; margin-top: 10px; display: none; }
+    button { font-size: 1.1rem; padding: 15px 30px; margin: 10px 5px; border-radius: 8px; border: none; background: #007bff; color: #fff; cursor: pointer; }
+    button:disabled { background: #ccc; }
+    #log { background: #000; color: #0f0; padding: 15px; border-radius: 8px; font-family: monospace; text-align: left; margin: 20px auto; max-width: 600px; white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow-y: auto; }
+    .error { color: #f00; }
+    .success { color: #0f0; }
+    .warning { color: #ff0; }
   </style>
 </head>
 <body>
-  <h1>📄 Document Scanner Debug Mode</h1>
-  <div id="camera-container">
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="overlay"></canvas>
-    <div id="detection-label">Initializing…</div>
+  <h1>📸 Scanner Diagnostic</h1>
+  
+  <video id="video" autoplay playsinline muted></video>
+  <br>
+  <canvas id="canvas"></canvas>
+  
+  <div>
+    <button id="test-btn" onclick="runTests()">Run Diagnostics</button>
+    <button id="capture-btn" onclick="testCapture()" disabled>Test Capture</button>
+    <button id="opencv-btn" onclick="testOpenCV()" disabled>Test OpenCV</button>
   </div>
   
-  <div id="controls">
-    <button id="capture-btn" disabled>Initializing…</button>
-    <button id="toggle-btn">Auto Detect: ON</button>
-    <button id="debug-btn">Debug View: OFF</button>
-  </div>
-  
-  <div class="slider-group">
-    <label>Edge Low <span id="edge-low-value">30</span></label>
-    <input type="range" id="edge-low-slider" min="10" max="200" value="30" />
-  </div>
-  <div class="slider-group">
-    <label>Edge High <span id="edge-high-value">90</span></label>
-    <input type="range" id="edge-high-slider" min="20" max="300" value="90" />
-  </div>
-  <div class="slider-group">
-    <label>Min Area <span id="area-value">10</span>%</label>
-    <input type="range" id="area-slider" min="5" max="50" value="10" />
-  </div>
-  <div class="slider-group">
-    <label>Contour Precision <span id="epsilon-value">2</span>%</label>
-    <input type="range" id="epsilon-slider" min="1" max="10" value="2" />
-  </div>
-  
-  <div id="status" class="status"></div>
-  
-  <div id="stats"></div>
-  
-  <div id="debug-container" style="display:none;">
-    <div>
-      <div class="debug-label">Gray</div>
-      <canvas id="debug-gray" class="debug-canvas"></canvas>
-    </div>
-    <div>
-      <div class="debug-label">Blurred</div>
-      <canvas id="debug-blur" class="debug-canvas"></canvas>
-    </div>
-    <div>
-      <div class="debug-label">Edges</div>
-      <canvas id="debug-edges" class="debug-canvas"></canvas>
-    </div>
-    <div>
-      <div class="debug-label">Dilated</div>
-      <canvas id="debug-dilated" class="debug-canvas"></canvas>
-    </div>
-  </div>
-  
-  <div id="preview">
-    <h3>📑 Scanned Document:</h3>
-    <img id="preview-img" src="" />
-  </div>
-  
-  <canvas id="hidden-canvas" style="display:none;"></canvas>
-  
+  <div id="log">Diagnostic Log:
+==============
+</div>
+
   <script src="https://docs.opencv.org/4.x/opencv.js"></script>
   <script>
-    // === Globals ===
     let video = document.getElementById('video');
-    let overlay = document.getElementById('overlay');
-    let overlayCtx = overlay.getContext('2d');
-    let hiddenCanvas = document.getElementById('hidden-canvas');
-    let hiddenCtx = hiddenCanvas.getContext('2d');
-    let autoDetect = true;
-    let debugMode = false;
-    let lastCorners = null;
-    let lastDetection = 0;
-    let isProcessing = false;
-    let edgeLow = 30;
-    let edgeHigh = 90;
-    let minAreaPct = 10;
-    let epsilonPct = 2;
-    let cvReady = false;
-
-    // === UI Hooks ===
+    let canvas = document.getElementById('canvas');
+    let ctx = canvas.getContext('2d');
+    let log = document.getElementById('log');
     let captureBtn = document.getElementById('capture-btn');
-    let toggleBtn = document.getElementById('toggle-btn');
-    let debugBtn = document.getElementById('debug-btn');
-    let statusBox = document.getElementById('status');
-    let detectionLabel = document.getElementById('detection-label');
-    let preview = document.getElementById('preview');
-    let previewImg = document.getElementById('preview-img');
-    let stats = document.getElementById('stats');
-    let debugContainer = document.getElementById('debug-container');
-
-    // Sliders
-    document.getElementById('edge-low-slider').oninput = e => {
-      edgeLow = +e.target.value;
-      document.getElementById('edge-low-value').textContent = edgeLow;
-    };
-    document.getElementById('edge-high-slider').oninput = e => {
-      edgeHigh = +e.target.value;
-      document.getElementById('edge-high-value').textContent = edgeHigh;
-    };
-    document.getElementById('area-slider').oninput = e => {
-      minAreaPct = +e.target.value;
-      document.getElementById('area-value').textContent = minAreaPct;
-    };
-    document.getElementById('epsilon-slider').oninput = e => {
-      epsilonPct = +e.target.value;
-      document.getElementById('epsilon-value').textContent = epsilonPct;
-    };
-
-    toggleBtn.onclick = () => {
-      autoDetect = !autoDetect;
-      toggleBtn.textContent = 'Auto Detect: ' + (autoDetect ? 'ON' : 'OFF');
-      if (autoDetect && cvReady) requestAnimationFrame(detectFrame);
-    };
+    let opencvBtn = document.getElementById('opencv-btn');
     
-    debugBtn.onclick = () => {
-      debugMode = !debugMode;
-      debugBtn.textContent = 'Debug View: ' + (debugMode ? 'ON' : 'OFF');
-      debugContainer.style.display = debugMode ? 'flex' : 'none';
-    };
-
-    captureBtn.onclick = () => captureDocument();
-
-    // === Camera setup ===
-    async function startCamera() {
+    function addLog(msg, type = '') {
+      const timestamp = new Date().toLocaleTimeString();
+      const className = type ? ` class="${type}"` : '';
+      log.innerHTML += `<span${className}>[${timestamp}] ${msg}</span>\n`;
+      log.scrollTop = log.scrollHeight;
+    }
+    
+    async function runTests() {
+      addLog('Starting diagnostics...', 'warning');
+      
+      // Test 1: Browser capabilities
+      addLog('\n1. BROWSER CHECKS:', 'warning');
+      addLog(`User Agent: ${navigator.userAgent.substring(0, 50)}...`);
+      addLog(`Camera API: ${navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? 'YES' : 'NO'}`, 
+        navigator.mediaDevices ? 'success' : 'error');
+      
+      // Test 2: Camera access
+      addLog('\n2. CAMERA TEST:', 'warning');
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: 'environment', 
-            width: {ideal: 1280}, 
-            height: {ideal: 720}
-          }
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' } 
         });
         video.srcObject = stream;
+        
         video.onloadedmetadata = () => {
           video.play();
           setTimeout(() => {
-            setCanvasSize();
+            addLog(`Camera initialized: ${video.videoWidth}x${video.videoHeight}`, 'success');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
             captureBtn.disabled = false;
-            captureBtn.textContent = '📸 Capture';
-            showStatus('Camera ready! OpenCV loaded.', 'success');
-            if (autoDetect && cvReady) requestAnimationFrame(detectFrame);
-          }, 500);
+          }, 1000);
         };
       } catch (err) {
-        showStatus('Camera error: ' + err.message, 'error');
-        captureBtn.textContent = 'Camera Failed';
+        addLog(`Camera error: ${err.message}`, 'error');
+      }
+      
+      // Test 3: OpenCV status
+      addLog('\n3. OPENCV CHECK:', 'warning');
+      checkOpenCV();
+    }
+    
+    function checkOpenCV() {
+      if (typeof cv !== 'undefined') {
+        try {
+          // Test if cv is actually functional
+          let testMat = new cv.Mat();
+          testMat.delete();
+          addLog('OpenCV loaded and functional!', 'success');
+          addLog(`OpenCV build: ${cv.getBuildInformation().substring(0, 100)}...`);
+          opencvBtn.disabled = false;
+        } catch (e) {
+          addLog('OpenCV loaded but not functional: ' + e.message, 'error');
+        }
+      } else {
+        addLog('OpenCV not loaded yet, waiting...', 'warning');
+        setTimeout(checkOpenCV, 1000);
       }
     }
     
-    function setCanvasSize() {
-      const w = video.videoWidth;
-      const h = video.videoHeight;
-      overlay.width = w;
-      overlay.height = h;
-      hiddenCanvas.width = w;
-      hiddenCanvas.height = h;
-      
-      // Position overlay correctly
-      overlay.style.position = 'absolute';
-      overlay.style.top = '0';
-      overlay.style.left = '0';
-      overlay.style.width = video.clientWidth + 'px';
-      overlay.style.height = video.clientHeight + 'px';
+    function testCapture() {
+      addLog('\n4. CAPTURE TEST:', 'warning');
+      try {
+        ctx.drawImage(video, 0, 0);
+        canvas.style.display = 'block';
+        
+        // Get some pixels to verify
+        const imageData = ctx.getImageData(0, 0, 10, 10);
+        const hasData = Array.from(imageData.data).some(v => v > 0);
+        
+        if (hasData) {
+          addLog('Canvas capture successful! Image data present.', 'success');
+          addLog(`First pixel RGBA: [${imageData.data[0]}, ${imageData.data[1]}, ${imageData.data[2]}, ${imageData.data[3]}]`);
+        } else {
+          addLog('Canvas capture failed - all pixels are black', 'error');
+        }
+      } catch (err) {
+        addLog(`Capture error: ${err.message}`, 'error');
+      }
     }
-
-    // === Document Detection Loop ===
-    function detectFrame() {
-      if (!autoDetect || isProcessing || video.readyState !== 4 || !cvReady) {
-        if (autoDetect) requestAnimationFrame(detectFrame);
+    
+    function testOpenCV() {
+      addLog('\n5. OPENCV PROCESSING TEST:', 'warning');
+      if (typeof cv === 'undefined') {
+        addLog('OpenCV not loaded!', 'error');
         return;
       }
       
       try {
-        // Get video frame
-        hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
-        let frame = hiddenCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height);
+        // Capture frame
+        ctx.drawImage(video, 0, 0);
+        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         
-        let src = cv.matFromImageData(frame);
+        // Create Mat from image
+        addLog('Creating Mat from image data...');
+        let src = cv.matFromImageData(imageData);
+        addLog(`Source Mat: ${src.rows}x${src.cols}, channels: ${src.channels()}`, 'success');
+        
+        // Convert to gray
+        addLog('Converting to grayscale...');
         let gray = new cv.Mat();
-        let blur = new cv.Mat();
-        let edges = new cv.Mat();
-        let dilated = new cv.Mat();
-        
-        // Convert to grayscale
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        addLog(`Gray Mat: ${gray.rows}x${gray.cols}, channels: ${gray.channels()}`, 'success');
         
-        // Apply Gaussian blur
-        cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
+        // Try Canny
+        addLog('Applying Canny edge detection...');
+        let edges = new cv.Mat();
+        cv.Canny(gray, edges, 50, 150);
+        addLog(`Edges Mat: ${edges.rows}x${edges.cols}`, 'success');
         
-        // Canny edge detection
-        cv.Canny(blur, edges, edgeLow, edgeHigh);
-        
-        // Dilate edges to close gaps
-        let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
-        cv.dilate(edges, dilated, kernel);
-        kernel.delete();
-        
-        // Show debug canvases
-        if (debugMode) {
-          cv.imshow('debug-gray', gray);
-          cv.imshow('debug-blur', blur);
-          cv.imshow('debug-edges', edges);
-          cv.imshow('debug-dilated', dilated);
-        }
+        // Count non-zero pixels
+        let nonZero = cv.countNonZero(edges);
+        addLog(`Non-zero edge pixels: ${nonZero} (${(nonZero / (edges.rows * edges.cols) * 100).toFixed(2)}%)`, 
+          nonZero > 0 ? 'success' : 'warning');
         
         // Find contours
+        addLog('Finding contours...');
         let contours = new cv.MatVector();
         let hierarchy = new cv.Mat();
-        cv.findContours(dilated, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+        cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+        addLog(`Contours found: ${contours.size()}`, contours.size() > 0 ? 'success' : 'warning');
         
-        let statsText = `Frame: ${hiddenCanvas.width}x${hiddenCanvas.height}\n`;
-        statsText += `Contours found: ${contours.size()}\n`;
-        
-        // Find largest quadrilateral
-        let best = null;
-        let maxArea = 0;
-        let quadCount = 0;
-        
-        for (let i = 0; i < contours.size(); i++) {
-          let cnt = contours.get(i);
-          let area = cv.contourArea(cnt);
-          let peri = cv.arcLength(cnt, true);
-          
-          // Approximate polygon
-          let approx = new cv.Mat();
-          cv.approxPolyDP(cnt, approx, epsilonPct * peri / 100, true);
-          
-          // Check if it's a quadrilateral
-          if (approx.rows === 4) {
-            quadCount++;
-            let minArea = hiddenCanvas.width * hiddenCanvas.height * minAreaPct / 100;
-            
-            if (area > maxArea && area > minArea) {
-              maxArea = area;
-              if (best) best.delete();
-              best = approx.clone();
-            }
-          }
-          
-          approx.delete();
-          cnt.delete();
-        }
-        
-        statsText += `Quadrilaterals: ${quadCount}\n`;
-        statsText += `Max area: ${Math.round(maxArea)} (${Math.round(maxArea / (hiddenCanvas.width * hiddenCanvas.height) * 100)}%)\n`;
-        stats.textContent = statsText;
-        
-        // Clear overlay
-        overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-        
-        const now = Date.now();
-        if (best) {
-          // Extract corners
-          let pts = [];
-          for (let i = 0; i < 4; i++) {
-            let p = best.data32S.slice(i * 2, i * 2 + 2);
-            pts.push([p[0], p[1]]);
-          }
-          lastCorners = orderCorners(pts);
-          lastDetection = now;
-          best.delete();
-        }
-        
-        // Draw if recent detection
-        if (lastCorners && (now - lastDetection < 1000)) {
-          drawPolygon(lastCorners, "#00ff00");
-          detectionLabel.textContent = 'Document Detected!';
-          detectionLabel.classList.add('detected');
-        } else {
-          detectionLabel.textContent = 'Searching…';
-          detectionLabel.classList.remove('detected');
-          lastCorners = null;
-        }
+        // Show edges on canvas
+        cv.imshow(canvas, edges);
+        addLog('Edge detection result shown on canvas', 'success');
         
         // Cleanup
         src.delete();
         gray.delete();
-        blur.delete();
         edges.delete();
-        dilated.delete();
         contours.delete();
         hierarchy.delete();
         
+        addLog('\nOpenCV is working correctly! ✅', 'success');
+        
       } catch (err) {
-        console.error('Detection error:', err);
-      }
-      
-      requestAnimationFrame(detectFrame);
-    }
-    
-    // Draw detected polygon
-    function drawPolygon(corners, color) {
-      // Scale coordinates to match overlay canvas size
-      const scaleX = overlay.width / hiddenCanvas.width;
-      const scaleY = overlay.height / hiddenCanvas.height;
-      
-      overlayCtx.strokeStyle = color;
-      overlayCtx.lineWidth = 3;
-      overlayCtx.shadowColor = color;
-      overlayCtx.shadowBlur = 10;
-      
-      overlayCtx.beginPath();
-      overlayCtx.moveTo(corners[0][0] * scaleX, corners[0][1] * scaleY);
-      for (let i = 1; i < 4; i++) {
-        overlayCtx.lineTo(corners[i][0] * scaleX, corners[i][1] * scaleY);
-      }
-      overlayCtx.closePath();
-      overlayCtx.stroke();
-      
-      // Draw corner points
-      overlayCtx.fillStyle = color;
-      for (let c of corners) {
-        overlayCtx.beginPath();
-        overlayCtx.arc(c[0] * scaleX, c[1] * scaleY, 8, 0, 2 * Math.PI);
-        overlayCtx.fill();
+        addLog(`OpenCV error: ${err.message}`, 'error');
+        addLog(`Stack: ${err.stack}`, 'error');
       }
     }
     
-    // Order corners: top-left, top-right, bottom-right, bottom-left
-    function orderCorners(pts) {
-      // Calculate center
-      let cx = pts.reduce((sum, p) => sum + p[0], 0) / 4;
-      let cy = pts.reduce((sum, p) => sum + p[1], 0) / 4;
-      
-      // Sort by angle from center
-      let sorted = pts.sort((a, b) => {
-        let angleA = Math.atan2(a[1] - cy, a[0] - cx);
-        let angleB = Math.atan2(b[1] - cy, b[0] - cx);
-        return angleA - angleB;
-      });
-      
-      // Find top-left (minimum sum of coordinates)
-      let minSum = Infinity;
-      let tlIdx = 0;
-      for (let i = 0; i < 4; i++) {
-        let sum = sorted[i][0] + sorted[i][1];
-        if (sum < minSum) {
-          minSum = sum;
-          tlIdx = i;
-        }
-      }
-      
-      // Reorder starting from top-left
-      let ordered = [];
-      for (let i = 0; i < 4; i++) {
-        ordered.push(sorted[(tlIdx + i) % 4]);
-      }
-      
-      return ordered;
-    }
-
-    // === Capture & Transform ===
-    function captureDocument() {
-      if (isProcessing) return;
-      isProcessing = true;
-      
-      let imgData;
-      if (lastCorners) {
-        imgData = extractDocument(lastCorners);
-        showStatus('Document transformed!', 'success');
-      } else {
-        hiddenCtx.drawImage(video, 0, 0);
-        imgData = hiddenCanvas.toDataURL('image/jpeg', 0.95);
-        showStatus('Full frame captured!', 'success');
-      }
-      
-      preview.style.display = 'block';
-      previewImg.src = imgData;
-      isProcessing = false;
-    }
+    // Auto-run tests when page loads
+    window.onload = () => {
+      addLog('Page loaded, waiting for user to start diagnostics...');
+    };
     
-    function extractDocument(corners) {
-      // Calculate output dimensions
-      const w = Math.max(
-        dist(corners[0], corners[1]),
-        dist(corners[2], corners[3])
-      );
-      const h = Math.max(
-        dist(corners[0], corners[3]),
-        dist(corners[1], corners[2])
-      );
-      
-      // Get source image
-      hiddenCtx.drawImage(video, 0, 0);
-      let src = cv.matFromImageData(hiddenCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height));
-      let dst = new cv.Mat();
-      
-      // Define transformation points
-      let srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, corners.flat());
-      let dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, w, 0, w, h, 0, h]);
-      
-      // Get perspective transform
-      let M = cv.getPerspectiveTransform(srcPts, dstPts);
-      
-      // Apply transform
-      cv.warpPerspective(src, dst, M, new cv.Size(w, h));
-      
-      // Create output canvas
-      let outCanvas = document.createElement('canvas');
-      outCanvas.width = w;
-      outCanvas.height = h;
-      cv.imshow(outCanvas, dst);
-      
-      let outURL = outCanvas.toDataURL('image/jpeg', 0.95);
-      
-      // Cleanup
-      src.delete();
-      dst.delete();
-      srcPts.delete();
-      dstPts.delete();
-      M.delete();
-      
-      return outURL;
+    // Set up OpenCV callback
+    if (typeof cv !== 'undefined') {
+      cv['onRuntimeInitialized'] = () => {
+        addLog('OpenCV runtime initialized!', 'success');
+      };
     }
-    
-    function dist(a, b) {
-      return Math.sqrt(Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2));
-    }
-
-    // === Utilities ===
-    function showStatus(msg, type = 'info') {
-      statusBox.textContent = msg;
-      statusBox.className = 'status ' + type;
-      if (type === 'success') {
-        setTimeout(() => statusBox.textContent = '', 3000);
-      }
-    }
-
-    // === Initialize ===
-    function onOpenCvReady() {
-      cvReady = true;
-      console.log('OpenCV.js is ready');
-      detectionLabel.textContent = 'OpenCV Ready';
-      startCamera();
-    }
-    
-    // Check if cv is already loaded
-    if (typeof cv !== 'undefined' && cv.Mat) {
-      onOpenCvReady();
-    } else {
-      // Wait for OpenCV to load
-      cv['onRuntimeInitialized'] = onOpenCvReady;
-    }
-    
-    // Handle page visibility
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden && video.srcObject) {
-        video.srcObject.getTracks().forEach(t => t.stop());
-      } else if (!document.hidden && !video.srcObject) {
-        startCamera();
-      }
-    });
   </script>
 </body>
 </html>
