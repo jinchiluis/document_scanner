@@ -31,6 +31,7 @@
     .page-thumbnails { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; }
     .page-thumb { width: 80px; height: 100px; border: 2px solid #ccc; border-radius: 4px; object-fit: cover; cursor: pointer; }
     .page-thumb:hover { border-color: #007bff; }
+    #debug-info { position: absolute; bottom: 10px; left: 10px; padding: 5px 10px; border-radius: 5px; background: rgba(0,0,0,0.7); color: #fff; font-size: 0.8em; }
   </style>
 </head>
 <body>
@@ -40,6 +41,7 @@
     <canvas id="overlay"></canvas>
     <div id="detection-label">Searching…</div>
     <div id="page-counter">Pages: 0</div>
+    <div id="debug-info">Initializing...</div>
   </div>
   <div id="controls">
     <button id="capture-btn" disabled>Initializing…</button>
@@ -97,6 +99,7 @@
     let retakeBtn = document.getElementById('retake-btn');
     let saveBtn = document.getElementById('save-btn');
     let pageThumbs = document.getElementById('page-thumbs');
+    let debugInfo = document.getElementById('debug-info');
 
     edgeSlider.oninput = e => {
       edgeThreshold = +e.target.value;
@@ -198,109 +201,144 @@
           captureBtn.disabled = false;
           captureBtn.textContent = '📸 Capture';
           showStatus('Camera ready!','success');
+          debugInfo.textContent = 'Camera active';
           if (autoDetect) requestAnimationFrame(detectFrame);
         };
       } catch (err) {
         showStatus('Camera error: ' + err.message, 'error');
         captureBtn.textContent = 'Camera Failed';
+        debugInfo.textContent = 'Camera failed';
       }
     }
+    
     function setCanvasSize() {
       overlay.width = video.videoWidth;
       overlay.height = video.videoHeight;
       hiddenCanvas.width = video.videoWidth;
       hiddenCanvas.height = video.videoHeight;
+      console.log(`Canvas size set: ${video.videoWidth}x${video.videoHeight}`);
     }
 
     // === Document Detection Loop ===
     function detectFrame() {
       if (!autoDetect || isProcessing || video.readyState !== 4) {
-        requestAnimationFrame(detectFrame);
+        if (autoDetect) requestAnimationFrame(detectFrame);
         return;
       }
-      // Get video frame to canvas
-      hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
-      let frame = hiddenCtx.getImageData(0,0,hiddenCanvas.width,hiddenCanvas.height);
-      let src = cv.matFromImageData(frame);
-      let gray = new cv.Mat();
-      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-      let blur = new cv.Mat();
-      cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
-      let edges = new cv.Mat();
-      cv.Canny(blur, edges, edgeThreshold, edgeThreshold*2);
+      
+      try {
+        // Get video frame to canvas
+        hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+        let frame = hiddenCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height);
+        let src = cv.matFromImageData(frame);
+        let gray = new cv.Mat();
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        let blur = new cv.Mat();
+        cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
+        let edges = new cv.Mat();
+        cv.Canny(blur, edges, edgeThreshold, edgeThreshold * 2);
 
-      let contours = new cv.MatVector();
-      let hierarchy = new cv.Mat();
-      cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+        let contours = new cv.MatVector();
+        let hierarchy = new cv.Mat();
+        cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+        
+        // Debug info - this was missing in the new version!
+        console.log('Contours found:', contours.size());
+        debugInfo.textContent = `Contours: ${contours.size()}`;
 
-      // Find largest quadrilateral
-      let best = null, maxArea = 0;
-      for (let i=0; i<contours.size(); ++i) {
-        let cnt = contours.get(i);
-        let peri = cv.arcLength(cnt, true);
-        let approx = new cv.Mat();
-        cv.approxPolyDP(cnt, approx, 0.02*peri, true);
-        if (approx.rows === 4) {
-          let area = cv.contourArea(cnt);
-          if (area > maxArea && area > hiddenCanvas.width * hiddenCanvas.height * minAreaPct/100) {
-            maxArea = area;
-            if (best) best.delete();
-            best = approx.clone();
+        // Find largest quadrilateral
+        let best = null, maxArea = 0;
+        const minAreaThreshold = hiddenCanvas.width * hiddenCanvas.height * minAreaPct / 100;
+        
+        for (let i = 0; i < contours.size(); ++i) {
+          let cnt = contours.get(i);
+          let peri = cv.arcLength(cnt, true);
+          let approx = new cv.Mat();
+          cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+          
+          if (approx.rows === 4) {
+            let area = cv.contourArea(cnt);
+            if (area > maxArea && area > minAreaThreshold) {
+              maxArea = area;
+              if (best) best.delete();
+              best = approx.clone();
+            }
+          }
+          approx.delete();
+          cnt.delete();
+        }
+        
+        // Draw overlay
+        overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+        const now = Date.now();
+        
+        if (best) {
+          // Extract corners
+          let pts = [];
+          for (let i = 0; i < 4; ++i) {
+            let p = best.intPtr(i, 0);
+            pts.push([p[0], p[1]]);
+          }
+          lastCorners = orderCorners(pts);
+          lastDetection = now;
+          best.delete();
+          debugInfo.textContent = `Document found! Area: ${Math.round(maxArea)}`;
+        }
+        
+        // Draw if recent detection
+        if (lastCorners && (now - lastDetection < 700)) {
+          drawPolygon(lastCorners, "#2ef516");
+          detectionLabel.textContent = 'Document Detected!';
+          detectionLabel.classList.add('detected');
+        } else {
+          detectionLabel.textContent = 'Searching…';
+          detectionLabel.classList.remove('detected');
+          lastCorners = null;
+          if (!best) {
+            debugInfo.textContent = `Contours: ${contours.size()}, No documents`;
           }
         }
-        approx.delete();
-        cnt.delete();
+        
+        // Clean up
+        src.delete(); 
+        gray.delete(); 
+        blur.delete(); 
+        edges.delete(); 
+        contours.delete(); 
+        hierarchy.delete();
+        
+      } catch (error) {
+        console.error('Detection error:', error);
+        debugInfo.textContent = 'Detection error';
       }
-      // Draw overlay
-      overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-      const now = Date.now();
-      if (best) {
-        // Extract corners
-        let pts = [];
-        for (let i=0; i<4; ++i) {
-          let p = best.intPtr(i,0);
-          pts.push([p[0],p[1]]);
-        }
-        lastCorners = orderCorners(pts);
-        lastDetection = now;
-        best.delete();
-      }
-      // Draw if recent detection
-      if (lastCorners && (now-lastDetection < 700)) {
-        drawPolygon(lastCorners, "#2ef516");
-        detectionLabel.textContent = 'Document Detected!';
-        detectionLabel.classList.add('detected');
-      } else {
-        detectionLabel.textContent = 'Searching…';
-        detectionLabel.classList.remove('detected');
-        lastCorners = null;
-      }
-      src.delete(); gray.delete(); blur.delete(); edges.delete(); contours.delete(); hierarchy.delete();
+      
       requestAnimationFrame(detectFrame);
     }
+    
     // Draw detected polygon/corners
     function drawPolygon(corners, color) {
       overlayCtx.strokeStyle = color;
       overlayCtx.lineWidth = 4;
       overlayCtx.beginPath();
       overlayCtx.moveTo(corners[0][0], corners[0][1]);
-      for (let i=1;i<4;++i) overlayCtx.lineTo(corners[i][0], corners[i][1]);
+      for (let i = 1; i < 4; ++i) overlayCtx.lineTo(corners[i][0], corners[i][1]);
       overlayCtx.closePath();
       overlayCtx.stroke();
       for (let c of corners) {
         overlayCtx.beginPath();
-        overlayCtx.arc(c[0],c[1],8,0,2*Math.PI);
+        overlayCtx.arc(c[0], c[1], 8, 0, 2 * Math.PI);
         overlayCtx.fillStyle = color;
         overlayCtx.fill();
       }
     }
+    
     // Robust corner order: tl, tr, br, bl
     function orderCorners(pts) {
-      pts = pts.slice().sort((a,b) => a[1]-b[1]);
-      let [t1,t2, b1,b2] = pts;
-      let [tl, tr] = [t1, t2].sort((a,b) => a[0]-b[0]);
-      let [bl, br] = [b1, b2].sort((a,b) => a[0]-b[0]);
-      return [tl,tr,br,bl];
+      pts = pts.slice().sort((a, b) => a[1] - b[1]);
+      let [t1, t2, b1, b2] = pts;
+      let [tl, tr] = [t1, t2].sort((a, b) => a[0] - b[0]);
+      let [bl, br] = [b1, b2].sort((a, b) => a[0] - b[0]);
+      return [tl, tr, br, bl];
     }
 
     // === Capture, Perspective Transform, Save ===
@@ -310,11 +348,11 @@
       let imgData;
       if (lastCorners) {
         imgData = extractDocument(lastCorners);
-        showStatus('Document transformed!','success');
+        showStatus('Document transformed!', 'success');
       } else {
-        hiddenCtx.drawImage(video,0,0,hiddenCanvas.width,hiddenCanvas.height);
-        imgData = hiddenCanvas.toDataURL('image/jpeg',0.95);
-        showStatus('Full frame captured!','success');
+        hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+        imgData = hiddenCanvas.toDataURL('image/jpeg', 0.95);
+        showStatus('Full frame captured!', 'success');
       }
       currentPageData = imgData;
       preview.style.display = 'block';
@@ -322,6 +360,7 @@
       actionButtons.classList.add('visible');
       isProcessing = false;
     }
+    
     function extractDocument(corners) {
       const w = Math.max(
         dist(corners[0], corners[1]),
@@ -331,37 +370,41 @@
         dist(corners[0], corners[3]),
         dist(corners[1], corners[2])
       );
-      hiddenCtx.drawImage(video,0,0,hiddenCanvas.width,hiddenCanvas.height);
-      let src = cv.matFromImageData(hiddenCtx.getImageData(0,0,hiddenCanvas.width,hiddenCanvas.height));
+      hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+      let src = cv.matFromImageData(hiddenCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height));
       let dst = new cv.Mat();
-      let srcTri = cv.matFromArray(4,1,cv.CV_32FC2, [].concat(...corners));
-      let dstTri = cv.matFromArray(4,1,cv.CV_32FC2, [0,0, w,0, w,h, 0,h]);
+      let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [].concat(...corners));
+      let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, w, 0, w, h, 0, h]);
       let M = cv.getPerspectiveTransform(srcTri, dstTri);
-      cv.warpPerspective(src, dst, M, new cv.Size(w,h));
+      cv.warpPerspective(src, dst, M, new cv.Size(w, h));
       let outCanvas = document.createElement('canvas');
       outCanvas.width = w; outCanvas.height = h;
       cv.imshow(outCanvas, dst);
-      let outURL = outCanvas.toDataURL('image/jpeg',0.95);
+      let outURL = outCanvas.toDataURL('image/jpeg', 0.95);
       src.delete(); dst.delete(); srcTri.delete(); dstTri.delete(); M.delete();
       return outURL;
     }
-    function dist(a,b){ return Math.hypot(a[0]-b[0],a[1]-b[1]); }
+    
+    function dist(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
 
     // === Feedback helpers ===
-    function showStatus(msg, type='info') {
+    function showStatus(msg, type = 'info') {
       statusBox.textContent = msg;
       statusBox.className = 'status ' + (type || '');
-      if(type==='success') setTimeout(()=>statusBox.textContent='',3000);
+      if (type === 'success') setTimeout(() => statusBox.textContent = '', 3000);
     }
 
     // === Initialize ===
     cv['onRuntimeInitialized'] = () => {
+      console.log('OpenCV.js loaded successfully');
+      debugInfo.textContent = 'OpenCV loaded';
       startCamera();
     };
-    document.addEventListener('visibilitychange', ()=>{
-      if(document.hidden && video.srcObject) {
-        video.srcObject.getTracks().forEach(t=>t.stop());
-      } else if(!document.hidden && !video.srcObject) {
+    
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && video.srcObject) {
+        video.srcObject.getTracks().forEach(t => t.stop());
+      } else if (!document.hidden && !video.srcObject) {
         startCamera();
       }
     });
