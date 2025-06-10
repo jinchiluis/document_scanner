@@ -22,12 +22,11 @@ PROJECT_ROOT = BACKEND_DIR.parent
 # Setup save directory inside Dropbox
 # Files should be placed under a dated folder inside
 # ``C:\Users\jinch\Dropbox\SCAN-Dokuments``.  The folder name uses
-# the format ``YYMMDD`` (year, month, day).  If the folder does not
-# exist it will be created when the server starts.
+# the format ``YYMMDD`` (year, month, day).  The directory should only
+# be created when the first document is saved
 ROOT_SAVE_DIR = Path(r"C:\Users\jinch\Dropbox\SCAN-Dokuments")
 DATE_FOLDER = datetime.now().strftime("%y%m%d")
 SAVE_DIR = ROOT_SAVE_DIR / DATE_FOLDER
-SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
 print(f"📁 Backend directory: {BACKEND_DIR}")
 print(f"📁 Project root: {PROJECT_ROOT}")
@@ -67,6 +66,7 @@ async def save_image(req: Request):
         img_bytes = base64.b64decode(img_data)
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        SAVE_DIR.mkdir(parents=True, exist_ok=True)
         filename = SAVE_DIR / f"doc_{timestamp}.png"
         
         with open(filename, 'wb') as f:
@@ -95,6 +95,7 @@ async def save_pdf(req: Request):
             return JSONResponse({"status": "error", "message": "No pages provided"}, status_code=400)
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        SAVE_DIR.mkdir(parents=True, exist_ok=True)
         pdf_filename = SAVE_DIR / f"doc_{timestamp}.pdf"
         
         # Create PDF
