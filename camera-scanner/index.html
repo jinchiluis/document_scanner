@@ -2,67 +2,465 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Document Scanner Demo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+  <title>Document Scanner</title>
   <style>
-    body { font-family: system-ui, sans-serif; background: #f5f5f5; margin: 0; padding: 24px; text-align: center; }
-    #camera-container { position: relative; display: inline-block; background: #111; border-radius: 12px; }
-    video, canvas { max-width: 90vw; border-radius: 12px; }
-    #overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
-    #controls { margin: 16px 0; }
-    button { font-size: 1rem; padding: 12px 28px; border-radius: 7px; border: none; background: #007bff; color: #fff; cursor: pointer; margin: 0 5px; }
-    button:disabled { background: #aaa; }
-    button.secondary { background: #6c757d; }
-    button.success { background: #28a745; }
-    .status { margin: 18px auto; padding: 12px; border-radius: 8px; max-width: 320px; }
-    .status.success { background: #e8ffe8; color: #228c22; }
-    .status.error { background: #ffeaea; color: #d60000; }
-    .status.info { background: #e8f4ff; color: #0066cc; }
-    .slider-group { margin: 14px 0; }
-    .slider-group label { font-size: 0.95em; margin-right: 12px; }
-    #preview { margin: 28px auto; max-width: 320px; display: none; }
-    #preview img { width: 100%; border-radius: 8px; border: 2px solid #333; }
-    #detection-label { position: absolute; top: 10px; left: 10px; padding: 5px 14px; border-radius: 5px; background: rgba(0,0,0,0.7); color: #fff; font-size: 1em;}
-    #detection-label.detected { background: rgba(33,200,70,0.88); }
-    #page-counter { position: absolute; top: 10px; right: 10px; padding: 5px 14px; border-radius: 5px; background: rgba(0,0,0,0.7); color: #fff; font-size: 1em; display: none; }
-    #page-counter.visible { display: block; background: rgba(255,165,0,0.88); }
-    #action-buttons { display: none; margin-top: 20px; }
-    #action-buttons.visible { display: block; }
-    .page-thumbnails { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; }
-    .page-thumb { width: 80px; height: 100px; border: 2px solid #ccc; border-radius: 4px; object-fit: cover; cursor: pointer; }
-    .page-thumb:hover { border-color: #007bff; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .container {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      max-width: 100vw;
+    }
+    
+    .header {
+      padding: 12px 20px;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      z-index: 10;
+    }
+    
+    .header h1 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    
+    .camera-section {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+    
+    #video {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    #overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    .camera-info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      z-index: 5;
+    }
+    
+    .info-badge {
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
+      font-size: 0.85rem;
+      transition: all 0.3s ease;
+    }
+    
+    .info-badge.detected {
+      background: rgba(46, 245, 22, 0.8);
+      color: #000;
+      font-weight: 600;
+    }
+    
+    .info-badge.pages {
+      background: rgba(255, 165, 0, 0.8);
+      color: #000;
+      font-weight: 600;
+    }
+    
+    .bottom-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 20px;
+      background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+    }
+    
+    .capture-area {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+    
+    .capture-btn {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: 4px solid #fff;
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    
+    .capture-btn:active {
+      transform: scale(0.9);
+      background: rgba(255,255,255,0.4);
+    }
+    
+    .capture-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    
+    .capture-btn::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #fff;
+    }
+    
+    .settings-toggle {
+      text-align: center;
+      margin-top: 10px;
+    }
+    
+    .settings-btn {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 5px 15px;
+    }
+    
+    .settings-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(20,20,20,0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding: 20px;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+      z-index: 20;
+      max-height: 50vh;
+      overflow-y: auto;
+    }
+    
+    .settings-panel.open {
+      transform: translateY(0);
+    }
+    
+    .slider-group {
+      margin: 15px 0;
+    }
+    
+    .slider-group label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+      color: #ccc;
+    }
+    
+    .slider-group input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.1);
+      outline: none;
+      -webkit-appearance: none;
+    }
+    
+    .slider-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+    
+    .toggle-group {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 15px 0;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .toggle-switch {
+      width: 50px;
+      height: 28px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 14px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    
+    .toggle-switch.active {
+      background: #2ef516;
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.3s ease;
+    }
+    
+    .toggle-switch.active::after {
+      transform: translateX(22px);
+    }
+    
+    .action-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.95);
+      backdrop-filter: blur(20px);
+      display: none;
+      z-index: 30;
+      padding: 20px;
+    }
+    
+    .action-overlay.visible {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .preview-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .preview-container img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+    
+    .action-buttons {
+      padding: 20px 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    
+    .action-buttons button {
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .btn-continue {
+      background: #444;
+      color: #fff;
+    }
+    
+    .btn-retake {
+      background: #444;
+      color: #fff;
+    }
+    
+    .btn-save {
+      grid-column: 1 / -1;
+      background: #2ef516;
+      color: #000;
+    }
+    
+    .action-buttons button:active {
+      transform: scale(0.95);
+    }
+    
+    .page-indicator {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+      color: #888;
+    }
+    
+    .thumbnails {
+      position: fixed;
+      bottom: 120px;
+      left: 20px;
+      right: 20px;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 10px 0;
+      z-index: 15;
+    }
+    
+    .thumbnails:empty {
+      display: none;
+    }
+    
+    .thumb {
+      width: 60px;
+      height: 80px;
+      border-radius: 6px;
+      border: 2px solid rgba(255,255,255,0.3);
+      object-fit: cover;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .thumb:active {
+      transform: scale(0.9);
+      border-color: #2ef516;
+    }
+    
+    .status-toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-size: 0.9rem;
+      transition: transform 0.3s ease;
+      z-index: 50;
+      white-space: nowrap;
+    }
+    
+    .status-toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+    
+    .status-toast.success {
+      background: #2ef516;
+      color: #000;
+    }
+    
+    .status-toast.error {
+      background: #ff3b30;
+      color: #fff;
+    }
+    
+    .status-toast.info {
+      background: #007aff;
+      color: #fff;
+    }
+    
+    @media (max-height: 600px) {
+      .header h1 { font-size: 1rem; }
+      .capture-btn { width: 60px; height: 60px; }
+      .capture-btn::after { width: 40px; height: 40px; }
+    }
   </style>
 </head>
 <body>
-  <h1>📄 Document Scanner Demo</h1>
-  <div id="camera-container">
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="overlay"></canvas>
-    <div id="detection-label">Searching…</div>
-    <div id="page-counter">Pages: 0</div>
+  <div class="container">
+    <div class="header">
+      <h1>📸 Document Scanner</h1>
+    </div>
+    
+    <div class="camera-section">
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="overlay"></canvas>
+      
+      <div class="camera-info">
+        <div id="detection-label" class="info-badge">Searching...</div>
+        <div id="page-counter" class="info-badge pages" style="display:none;">0 pages</div>
+      </div>
+      
+      <div class="thumbnails" id="thumbnails"></div>
+      
+      <div class="bottom-controls">
+        <div class="capture-area">
+          <button id="capture-btn" class="capture-btn" disabled></button>
+        </div>
+        <div class="settings-toggle">
+          <button class="settings-btn" onclick="toggleSettings()">⚙️ Settings</button>
+        </div>
+      </div>
+    </div>
   </div>
-  <div id="controls">
-    <button id="capture-btn" disabled>Initializing…</button>
-    <button id="toggle-btn">Auto Detect: ON</button>
+  
+  <div id="settings-panel" class="settings-panel">
+    <div class="toggle-group">
+      <span>Auto Detect</span>
+      <div id="toggle-detect" class="toggle-switch active"></div>
+    </div>
+    
+    <div class="slider-group">
+      <label>
+        <span>Edge Sensitivity</span>
+        <span id="edge-value">50</span>
+      </label>
+      <input type="range" id="edge-slider" min="10" max="100" value="50">
+    </div>
+    
+    <div class="slider-group">
+      <label>
+        <span>Min Document Size</span>
+        <span id="area-value">20%</span>
+      </label>
+      <input type="range" id="area-slider" min="5" max="50" value="20">
+    </div>
   </div>
-  <div class="slider-group">
-    <label>Edge Sensitivity <span id="edge-value">50</span></label>
-    <input type="range" id="edge-slider" min="10" max="100" value="50" />
-    <label>Min Area <span id="area-value">20</span>%</label>
-    <input type="range" id="area-slider" min="5" max="50" value="20" />
+  
+  <div id="action-overlay" class="action-overlay">
+    <div class="preview-container">
+      <img id="preview-img" src="">
+    </div>
+    <div class="page-indicator" id="page-info">Page 1</div>
+    <div class="action-buttons">
+      <button class="btn-continue" onclick="continueScan()">📄 Add Page</button>
+      <button class="btn-retake" onclick="retake()">🔄 Retake</button>
+      <button class="btn-save" onclick="savePDF()">💾 Save as PDF</button>
+    </div>
   </div>
-  <div id="status" class="status"></div>
-  <div id="preview">
-    <h3>📑 Last Captured Page:</h3>
-    <img id="preview-img" src="" />
-  </div>
-  <div id="action-buttons">
-    <button id="continue-btn" class="secondary">📄 Continue Scanning</button>
-    <button id="retake-btn" class="secondary">🔄 Retake Last Page</button>
-    <button id="save-btn" class="success">💾 Save as PDF</button>
-  </div>
-  <div class="page-thumbnails" id="page-thumbs"></div>
+  
+  <div id="status-toast" class="status-toast"></div>
+  
   <canvas id="hidden-canvas" style="display:none;"></canvas>
+  
   <script src="https://docs.opencv.org/4.x/opencv.js"></script>
   <script>
     // === Globals ===
@@ -77,72 +475,71 @@
     let isProcessing = false;
     let edgeThreshold = 50;
     let minAreaPct = 20;
-    
-    // Multi-page buffer
     let pageBuffer = [];
     let currentPageData = null;
-
-    // === UI Hooks ===
-    let captureBtn = document.getElementById('capture-btn');
-    let toggleBtn = document.getElementById('toggle-btn');
-    let edgeSlider = document.getElementById('edge-slider');
-    let areaSlider = document.getElementById('area-slider');
-    let statusBox = document.getElementById('status');
-    let detectionLabel = document.getElementById('detection-label');
-    let preview = document.getElementById('preview');
-    let previewImg = document.getElementById('preview-img');
-    let pageCounter = document.getElementById('page-counter');
-    let actionButtons = document.getElementById('action-buttons');
-    let continueBtn = document.getElementById('continue-btn');
-    let retakeBtn = document.getElementById('retake-btn');
-    let saveBtn = document.getElementById('save-btn');
-    let pageThumbs = document.getElementById('page-thumbs');
-
+    
+    // UI elements
+    const captureBtn = document.getElementById('capture-btn');
+    const detectionLabel = document.getElementById('detection-label');
+    const pageCounter = document.getElementById('page-counter');
+    const actionOverlay = document.getElementById('action-overlay');
+    const previewImg = document.getElementById('preview-img');
+    const thumbnails = document.getElementById('thumbnails');
+    const settingsPanel = document.getElementById('settings-panel');
+    const toggleDetect = document.getElementById('toggle-detect');
+    const edgeSlider = document.getElementById('edge-slider');
+    const areaSlider = document.getElementById('area-slider');
+    
+    // Settings handlers
+    function toggleSettings() {
+      settingsPanel.classList.toggle('open');
+    }
+    
+    toggleDetect.onclick = () => {
+      autoDetect = !autoDetect;
+      toggleDetect.classList.toggle('active', autoDetect);
+      if (autoDetect) requestAnimationFrame(detectFrame);
+    };
+    
     edgeSlider.oninput = e => {
       edgeThreshold = +e.target.value;
       document.getElementById('edge-value').textContent = edgeThreshold;
     };
+    
     areaSlider.oninput = e => {
       minAreaPct = +e.target.value;
-      document.getElementById('area-value').textContent = minAreaPct;
+      document.getElementById('area-value').textContent = minAreaPct + '%';
     };
-
-    toggleBtn.onclick = () => {
-      autoDetect = !autoDetect;
-      toggleBtn.textContent = 'Auto Detect: ' + (autoDetect ? 'ON' : 'OFF');
-      if (autoDetect) requestAnimationFrame(detectFrame);
-    };
-
-    captureBtn.onclick = () => captureDocument();
     
-    continueBtn.onclick = () => {
+    captureBtn.onclick = captureDocument;
+    
+    // Action buttons
+    function continueScan() {
       if (currentPageData) {
         pageBuffer.push(currentPageData);
         updatePageDisplay();
         currentPageData = null;
-        preview.style.display = 'none';
-        actionButtons.classList.remove('visible');
-        showStatus(`Page ${pageBuffer.length} added. Continue scanning...`, 'info');
+        actionOverlay.classList.remove('visible');
+        showToast(`Page ${pageBuffer.length} added`, 'success');
       }
-    };
+    }
     
-    retakeBtn.onclick = () => {
+    function retake() {
       currentPageData = null;
-      preview.style.display = 'none';
-      actionButtons.classList.remove('visible');
-      showStatus('Page discarded. Ready to retake.', 'info');
-    };
+      actionOverlay.classList.remove('visible');
+      showToast('Ready to retake', 'info');
+    }
     
-    saveBtn.onclick = async () => {
+    async function savePDF() {
       if (currentPageData) {
         pageBuffer.push(currentPageData);
       }
       if (pageBuffer.length === 0) {
-        showStatus('No pages to save!', 'error');
+        showToast('No pages to save!', 'error');
         return;
       }
       
-      showStatus(`Saving ${pageBuffer.length} page(s) as PDF...`, 'info');
+      showToast(`Saving ${pageBuffer.length} pages...`, 'info');
       try {
         const response = await fetch('/save-pdf', {
           method: 'POST',
@@ -153,96 +550,110 @@
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const result = await response.json();
-        showStatus(`PDF saved successfully! ${pageBuffer.length} page(s)`, 'success');
+        showToast(`PDF saved! ${pageBuffer.length} pages`, 'success');
         
-        // Clear buffer and reset UI
+        // Reset
         pageBuffer = [];
         currentPageData = null;
         updatePageDisplay();
-        preview.style.display = 'none';
-        actionButtons.classList.remove('visible');
+        actionOverlay.classList.remove('visible');
       } catch (err) {
-        showStatus('Error saving PDF: ' + err.message, 'error');
+        showToast('Error saving PDF', 'error');
         console.error('Save error:', err);
       }
-    };
-
+    }
+    
     function updatePageDisplay() {
-      pageCounter.textContent = `Pages: ${pageBuffer.length}`;
-      pageCounter.classList.toggle('visible', pageBuffer.length > 0);
+      if (pageBuffer.length > 0) {
+        pageCounter.style.display = 'block';
+        pageCounter.textContent = `${pageBuffer.length} page${pageBuffer.length > 1 ? 's' : ''}`;
+      } else {
+        pageCounter.style.display = 'none';
+      }
       
       // Update thumbnails
-      pageThumbs.innerHTML = '';
+      thumbnails.innerHTML = '';
       pageBuffer.forEach((page, idx) => {
         const thumb = document.createElement('img');
         thumb.src = page;
-        thumb.className = 'page-thumb';
-        thumb.title = `Page ${idx + 1}`;
+        thumb.className = 'thumb';
         thumb.onclick = () => {
           previewImg.src = page;
-          preview.style.display = 'block';
+          actionOverlay.classList.add('visible');
         };
-        pageThumbs.appendChild(thumb);
+        thumbnails.appendChild(thumb);
       });
     }
-
-    // === Camera setup ===
+    
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('status-toast');
+      toast.textContent = message;
+      toast.className = `status-toast ${type} show`;
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+    
+    // Camera setup
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720} }
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
         });
         video.srcObject = stream;
         video.onloadedmetadata = () => {
           setCanvasSize();
           captureBtn.disabled = false;
-          captureBtn.textContent = '📸 Capture';
-          showStatus('Camera ready!','success');
+          showToast('Camera ready!', 'success');
           if (autoDetect) requestAnimationFrame(detectFrame);
         };
       } catch (err) {
-        showStatus('Camera error: ' + err.message, 'error');
-        captureBtn.textContent = 'Camera Failed';
+        showToast('Camera error', 'error');
+        console.error('Camera error:', err);
       }
     }
+    
     function setCanvasSize() {
       overlay.width = video.videoWidth;
       overlay.height = video.videoHeight;
       hiddenCanvas.width = video.videoWidth;
       hiddenCanvas.height = video.videoHeight;
     }
-
-    // === Document Detection Loop ===
+    
+    // Document detection
     function detectFrame() {
       if (!autoDetect || isProcessing || video.readyState !== 4) {
         requestAnimationFrame(detectFrame);
         return;
       }
-      // Get video frame to canvas
+      
       hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
-      let frame = hiddenCtx.getImageData(0,0,hiddenCanvas.width,hiddenCanvas.height);
+      let frame = hiddenCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height);
       let src = cv.matFromImageData(frame);
       let gray = new cv.Mat();
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
       let blur = new cv.Mat();
-      cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
+      cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
       let edges = new cv.Mat();
-      cv.Canny(blur, edges, edgeThreshold, edgeThreshold*2);
-
+      cv.Canny(blur, edges, edgeThreshold, edgeThreshold * 2);
+      
       let contours = new cv.MatVector();
       let hierarchy = new cv.Mat();
       cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-      // Find largest quadrilateral
+      
       let best = null, maxArea = 0;
-      for (let i=0; i<contours.size(); ++i) {
+      for (let i = 0; i < contours.size(); ++i) {
         let cnt = contours.get(i);
         let peri = cv.arcLength(cnt, true);
         let approx = new cv.Mat();
-        cv.approxPolyDP(cnt, approx, 0.02*peri, true);
+        cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
         if (approx.rows === 4) {
           let area = cv.contourArea(cnt);
-          if (area > maxArea && area > hiddenCanvas.width * hiddenCanvas.height * minAreaPct/100) {
+          if (area > maxArea && area > hiddenCanvas.width * hiddenCanvas.height * minAreaPct / 100) {
             maxArea = area;
             if (best) best.delete();
             best = approx.clone();
@@ -251,77 +662,83 @@
         approx.delete();
         cnt.delete();
       }
-      // Draw overlay
+      
       overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
       const now = Date.now();
       if (best) {
-        // Extract corners
         let pts = [];
-        for (let i=0; i<4; ++i) {
-          let p = best.intPtr(i,0);
-          pts.push([p[0],p[1]]);
+        for (let i = 0; i < 4; ++i) {
+          let p = best.intPtr(i, 0);
+          pts.push([p[0], p[1]]);
         }
         lastCorners = orderCorners(pts);
         lastDetection = now;
         best.delete();
       }
-      // Draw if recent detection
-      if (lastCorners && (now-lastDetection < 700)) {
+      
+      if (lastCorners && (now - lastDetection < 700)) {
         drawPolygon(lastCorners, "#2ef516");
-        detectionLabel.textContent = 'Document Detected!';
+        detectionLabel.textContent = 'Document found!';
         detectionLabel.classList.add('detected');
       } else {
-        detectionLabel.textContent = 'Searching…';
+        detectionLabel.textContent = 'Searching...';
         detectionLabel.classList.remove('detected');
         lastCorners = null;
       }
+      
       src.delete(); gray.delete(); blur.delete(); edges.delete(); contours.delete(); hierarchy.delete();
       requestAnimationFrame(detectFrame);
     }
-    // Draw detected polygon/corners
+    
     function drawPolygon(corners, color) {
       overlayCtx.strokeStyle = color;
-      overlayCtx.lineWidth = 4;
+      overlayCtx.lineWidth = 3;
+      overlayCtx.shadowColor = color;
+      overlayCtx.shadowBlur = 10;
       overlayCtx.beginPath();
       overlayCtx.moveTo(corners[0][0], corners[0][1]);
-      for (let i=1;i<4;++i) overlayCtx.lineTo(corners[i][0], corners[i][1]);
+      for (let i = 1; i < 4; ++i) overlayCtx.lineTo(corners[i][0], corners[i][1]);
       overlayCtx.closePath();
       overlayCtx.stroke();
+      overlayCtx.shadowBlur = 0;
+      
       for (let c of corners) {
         overlayCtx.beginPath();
-        overlayCtx.arc(c[0],c[1],8,0,2*Math.PI);
+        overlayCtx.arc(c[0], c[1], 6, 0, 2 * Math.PI);
         overlayCtx.fillStyle = color;
         overlayCtx.fill();
       }
     }
-    // Robust corner order: tl, tr, br, bl
+    
     function orderCorners(pts) {
-      pts = pts.slice().sort((a,b) => a[1]-b[1]);
-      let [t1,t2, b1,b2] = pts;
-      let [tl, tr] = [t1, t2].sort((a,b) => a[0]-b[0]);
-      let [bl, br] = [b1, b2].sort((a,b) => a[0]-b[0]);
-      return [tl,tr,br,bl];
+      pts = pts.slice().sort((a, b) => a[1] - b[1]);
+      let [t1, t2, b1, b2] = pts;
+      let [tl, tr] = [t1, t2].sort((a, b) => a[0] - b[0]);
+      let [bl, br] = [b1, b2].sort((a, b) => a[0] - b[0]);
+      return [tl, tr, br, bl];
     }
-
-    // === Capture, Perspective Transform, Save ===
+    
     function captureDocument() {
       if (isProcessing) return;
       isProcessing = true;
+      
       let imgData;
       if (lastCorners) {
         imgData = extractDocument(lastCorners);
-        showStatus('Document transformed!','success');
+        showToast('Document captured!', 'success');
       } else {
-        hiddenCtx.drawImage(video,0,0,hiddenCanvas.width,hiddenCanvas.height);
-        imgData = hiddenCanvas.toDataURL('image/jpeg',0.95);
-        showStatus('Full frame captured!','success');
+        hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+        imgData = hiddenCanvas.toDataURL('image/jpeg', 0.95);
+        showToast('Full frame captured!', 'success');
       }
+      
       currentPageData = imgData;
-      preview.style.display = 'block';
       previewImg.src = imgData;
-      actionButtons.classList.add('visible');
+      document.getElementById('page-info').textContent = `Page ${pageBuffer.length + 1}`;
+      actionOverlay.classList.add('visible');
       isProcessing = false;
     }
+    
     function extractDocument(corners) {
       const w = Math.max(
         dist(corners[0], corners[1]),
@@ -331,38 +748,47 @@
         dist(corners[0], corners[3]),
         dist(corners[1], corners[2])
       );
-      hiddenCtx.drawImage(video,0,0,hiddenCanvas.width,hiddenCanvas.height);
-      let src = cv.matFromImageData(hiddenCtx.getImageData(0,0,hiddenCanvas.width,hiddenCanvas.height));
+      
+      hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+      let src = cv.matFromImageData(hiddenCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height));
       let dst = new cv.Mat();
-      let srcTri = cv.matFromArray(4,1,cv.CV_32FC2, [].concat(...corners));
-      let dstTri = cv.matFromArray(4,1,cv.CV_32FC2, [0,0, w,0, w,h, 0,h]);
+      let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [].concat(...corners));
+      let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, w, 0, w, h, 0, h]);
       let M = cv.getPerspectiveTransform(srcTri, dstTri);
-      cv.warpPerspective(src, dst, M, new cv.Size(w,h));
+      cv.warpPerspective(src, dst, M, new cv.Size(w, h));
+      
       let outCanvas = document.createElement('canvas');
-      outCanvas.width = w; outCanvas.height = h;
+      outCanvas.width = w;
+      outCanvas.height = h;
       cv.imshow(outCanvas, dst);
-      let outURL = outCanvas.toDataURL('image/jpeg',0.95);
+      let outURL = outCanvas.toDataURL('image/jpeg', 0.95);
+      
       src.delete(); dst.delete(); srcTri.delete(); dstTri.delete(); M.delete();
       return outURL;
     }
-    function dist(a,b){ return Math.hypot(a[0]-b[0],a[1]-b[1]); }
-
-    // === Feedback helpers ===
-    function showStatus(msg, type='info') {
-      statusBox.textContent = msg;
-      statusBox.className = 'status ' + (type || '');
-      if(type==='success') setTimeout(()=>statusBox.textContent='',3000);
+    
+    function dist(a, b) {
+      return Math.hypot(a[0] - b[0], a[1] - b[1]);
     }
-
-    // === Initialize ===
+    
+    // Initialize
     cv['onRuntimeInitialized'] = () => {
       startCamera();
     };
-    document.addEventListener('visibilitychange', ()=>{
-      if(document.hidden && video.srcObject) {
-        video.srcObject.getTracks().forEach(t=>t.stop());
-      } else if(!document.hidden && !video.srcObject) {
+    
+    // Handle page visibility
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && video.srcObject) {
+        video.srcObject.getTracks().forEach(t => t.stop());
+      } else if (!document.hidden && !video.srcObject) {
         startCamera();
+      }
+    });
+    
+    // Close settings on outside click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.settings-panel') && !e.target.closest('.settings-btn')) {
+        settingsPanel.classList.remove('open');
       }
     });
   </script>
