@@ -19,8 +19,14 @@ app = FastAPI()
 BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BACKEND_DIR.parent
 
-# Setup paths
-SAVE_DIR = BACKEND_DIR / "saved_docs"
+# Setup save directory inside Dropbox
+# Files should be placed under a dated folder inside
+# ``C:\Users\jinch\Dropbox\SCAN-Dokuments``.  The folder name uses
+# the format ``YYMMDD`` (year, month, day).  If the folder does not
+# exist it will be created when the server starts.
+ROOT_SAVE_DIR = Path(r"C:\Users\jinch\Dropbox\SCAN-Dokuments")
+DATE_FOLDER = datetime.now().strftime("%y%m%d")
+SAVE_DIR = ROOT_SAVE_DIR / DATE_FOLDER
 SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
 print(f"📁 Backend directory: {BACKEND_DIR}")
