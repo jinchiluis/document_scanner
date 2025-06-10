@@ -23,8 +23,7 @@ PROJECT_ROOT = BACKEND_DIR.parent
 # Files should be placed under a dated folder inside
 # ``C:\Users\jinch\Dropbox\SCAN-Dokuments``.  The folder name uses
 # the format ``YYMMDD`` (year, month, day).  The directory should only
-# be created when the first document is saved, not when the server
-# starts.
+# be created when the first document is saved
 ROOT_SAVE_DIR = Path(r"C:\Users\jinch\Dropbox\SCAN-Dokuments")
 DATE_FOLDER = datetime.now().strftime("%y%m%d")
 SAVE_DIR = ROOT_SAVE_DIR / DATE_FOLDER
