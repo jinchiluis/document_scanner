@@ -32,6 +32,10 @@
     .page-thumb { width: 80px; height: 100px; border: 2px solid #ccc; border-radius: 4px; object-fit: cover; cursor: pointer; }
     .page-thumb:hover { border-color: #007bff; }
     #debug-info { position: absolute; bottom: 10px; left: 10px; padding: 5px 10px; border-radius: 5px; background: rgba(0,0,0,0.7); color: #fff; font-size: 0.8em; }
+    .manual-mode { background: #ff6b6b !important; }
+    .corner-marker { position: absolute; width: 40px; height: 40px; border: 3px solid #2ef516; border-radius: 50%; background: rgba(46, 245, 22, 0.3); transform: translate(-50%, -50%); cursor: move; touch-action: none; }
+    .corner-marker.dragging { background: rgba(255, 107, 107, 0.5); border-color: #ff6b6b; }
+    #manual-instruction { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); padding: 10px 20px; background: rgba(0,0,0,0.8); color: #fff; border-radius: 5px; display: none; }
   </style>
 </head>
 <body>
@@ -42,10 +46,12 @@
     <div id="detection-label">Searching…</div>
     <div id="page-counter">Pages: 0</div>
     <div id="debug-info">Initializing...</div>
+    <div id="manual-instruction">Drag corners to adjust document boundaries</div>
   </div>
   <div id="controls">
     <button id="capture-btn" disabled>Initializing…</button>
     <button id="toggle-btn">Auto Detect: ON</button>
+    <button id="manual-btn" class="secondary">Manual Mode</button>
   </div>
   <div class="slider-group">
     <label>Edge Sensitivity <span id="edge-value">50</span></label>
@@ -65,7 +71,7 @@
   </div>
   <div class="page-thumbnails" id="page-thumbs"></div>
   <canvas id="hidden-canvas" style="display:none;"></canvas>
-  <script src="https://docs.opencv.org/4.x/opencv.js"></script>
+  <canvas id="edge-canvas" style="display:none;"></canvas>
   <script>
     // === Globals ===
     let video = document.getElementById('video');
@@ -73,12 +79,19 @@
     let overlayCtx = overlay.getContext('2d');
     let hiddenCanvas = document.getElementById('hidden-canvas');
     let hiddenCtx = hiddenCanvas.getContext('2d');
+    let edgeCanvas = document.getElementById('edge-canvas');
+    let edgeCtx = edgeCanvas.getContext('2d');
     let autoDetect = true;
+    let manualMode = false;
     let lastCorners = null;
     let lastDetection = 0;
     let isProcessing = false;
     let edgeThreshold = 50;
     let minAreaPct = 20;
+    
+    // Manual mode corners
+    let manualCorners = null;
+    let draggedCorner = null;
     
     // Multi-page buffer
     let pageBuffer = [];
@@ -87,6 +100,7 @@
     // === UI Hooks ===
     let captureBtn = document.getElementById('capture-btn');
     let toggleBtn = document.getElementById('toggle-btn');
+    let manualBtn = document.getElementById('manual-btn');
     let edgeSlider = document.getElementById('edge-slider');
     let areaSlider = document.getElementById('area-slider');
     let statusBox = document.getElementById('status');
@@ -100,6 +114,7 @@
     let saveBtn = document.getElementById('save-btn');
     let pageThumbs = document.getElementById('page-thumbs');
     let debugInfo = document.getElementById('debug-info');
+    let manualInstruction = document.getElementById('manual-instruction');
 
     edgeSlider.oninput = e => {
       edgeThreshold = +e.target.value;
@@ -113,7 +128,26 @@
     toggleBtn.onclick = () => {
       autoDetect = !autoDetect;
       toggleBtn.textContent = 'Auto Detect: ' + (autoDetect ? 'ON' : 'OFF');
-      if (autoDetect) requestAnimationFrame(detectFrame);
+      if (autoDetect && !manualMode) requestAnimationFrame(detectFrame);
+    };
+    
+    manualBtn.onclick = () => {
+      manualMode = !manualMode;
+      manualBtn.classList.toggle('manual-mode');
+      manualBtn.textContent = manualMode ? 'Exit Manual' : 'Manual Mode';
+      
+      if (manualMode) {
+        initManualMode();
+        detectionLabel.textContent = 'Manual Mode';
+        detectionLabel.classList.add('detected');
+        manualInstruction.style.display = 'block';
+      } else {
+        clearManualMode();
+        detectionLabel.textContent = 'Searching...';
+        detectionLabel.classList.remove('detected');
+        manualInstruction.style.display = 'none';
+        if (autoDetect) requestAnimationFrame(detectFrame);
+      }
     };
 
     captureBtn.onclick = () => captureDocument();
@@ -146,28 +180,24 @@
       }
       
       showStatus(`Saving ${pageBuffer.length} page(s) as PDF...`, 'info');
-      try {
-        const response = await fetch('/save-pdf', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pages: pageBuffer })
-        });
-        
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        const result = await response.json();
-        showStatus(`PDF saved successfully! ${pageBuffer.length} page(s)`, 'success');
-        
-        // Clear buffer and reset UI
-        pageBuffer = [];
-        currentPageData = null;
-        updatePageDisplay();
-        preview.style.display = 'none';
-        actionButtons.classList.remove('visible');
-      } catch (err) {
-        showStatus('Error saving PDF: ' + err.message, 'error');
-        console.error('Save error:', err);
-      }
+      
+      // For demo purposes, just download the images
+      // In real implementation, this would send to server
+      pageBuffer.forEach((page, idx) => {
+        const link = document.createElement('a');
+        link.download = `page_${idx + 1}.jpg`;
+        link.href = page;
+        link.click();
+      });
+      
+      showStatus(`Downloaded ${pageBuffer.length} page(s)!`, 'success');
+      
+      // Clear buffer and reset UI
+      pageBuffer = [];
+      currentPageData = null;
+      updatePageDisplay();
+      preview.style.display = 'none';
+      actionButtons.classList.remove('visible');
     };
 
     function updatePageDisplay() {
@@ -202,7 +232,7 @@
           captureBtn.textContent = '📸 Capture';
           showStatus('Camera ready!','success');
           debugInfo.textContent = 'Camera active';
-          if (autoDetect) requestAnimationFrame(detectFrame);
+          if (autoDetect && !manualMode) requestAnimationFrame(detectFrame);
         };
       } catch (err) {
         showStatus('Camera error: ' + err.message, 'error');
@@ -216,73 +246,173 @@
       overlay.height = video.videoHeight;
       hiddenCanvas.width = video.videoWidth;
       hiddenCanvas.height = video.videoHeight;
+      edgeCanvas.width = video.videoWidth;
+      edgeCanvas.height = video.videoHeight;
       console.log(`Canvas size set: ${video.videoWidth}x${video.videoHeight}`);
+    }
+
+    // === Simple Edge Detection (no OpenCV) ===
+    function detectEdges(imageData) {
+      const width = imageData.width;
+      const height = imageData.height;
+      const data = imageData.data;
+      const output = new Uint8ClampedArray(data.length);
+      
+      // Convert to grayscale and apply simple Sobel edge detection
+      for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          const idx = (y * width + x) * 4;
+          
+          // Get surrounding pixels for Sobel
+          const tl = ((y-1) * width + (x-1)) * 4;
+          const tm = ((y-1) * width + x) * 4;
+          const tr = ((y-1) * width + (x+1)) * 4;
+          const ml = (y * width + (x-1)) * 4;
+          const mr = (y * width + (x+1)) * 4;
+          const bl = ((y+1) * width + (x-1)) * 4;
+          const bm = ((y+1) * width + x) * 4;
+          const br = ((y+1) * width + (x+1)) * 4;
+          
+          // Grayscale values
+          const gray = p => data[p] * 0.299 + data[p+1] * 0.587 + data[p+2] * 0.114;
+          
+          // Sobel X
+          const sobelX = -gray(tl) - 2*gray(ml) - gray(bl) + gray(tr) + 2*gray(mr) + gray(br);
+          // Sobel Y
+          const sobelY = -gray(tl) - 2*gray(tm) - gray(tr) + gray(bl) + 2*gray(bm) + gray(br);
+          
+          const magnitude = Math.sqrt(sobelX * sobelX + sobelY * sobelY);
+          const edge = magnitude > edgeThreshold ? 255 : 0;
+          
+          output[idx] = edge;
+          output[idx + 1] = edge;
+          output[idx + 2] = edge;
+          output[idx + 3] = 255;
+        }
+      }
+      
+      return new ImageData(output, width, height);
+    }
+
+    // === Simple Rectangle Detection ===
+    function findDocumentCorners(edgeData) {
+      const width = edgeData.width;
+      const height = edgeData.height;
+      const data = edgeData.data;
+      
+      // Find edge points
+      const edgePoints = [];
+      for (let y = 0; y < height; y += 5) { // Sample every 5 pixels for performance
+        for (let x = 0; x < width; x += 5) {
+          const idx = (y * width + x) * 4;
+          if (data[idx] > 128) {
+            edgePoints.push([x, y]);
+          }
+        }
+      }
+      
+      if (edgePoints.length < 100) return null;
+      
+      // Simple heuristic: find extreme points that might form a rectangle
+      let minX = width, maxX = 0, minY = height, maxY = 0;
+      let topLeftish = null, topRightish = null, bottomLeftish = null, bottomRightish = null;
+      let maxDist = 0;
+      
+      for (const [x, y] of edgePoints) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+      
+      // Check if the potential rectangle is large enough
+      const rectWidth = maxX - minX;
+      const rectHeight = maxY - minY;
+      const rectArea = rectWidth * rectHeight;
+      const minArea = width * height * minAreaPct / 100;
+      
+      if (rectArea < minArea) return null;
+      
+      // Find corner candidates in each quadrant
+      const midX = (minX + maxX) / 2;
+      const midY = (minY + maxY) / 2;
+      
+      let corners = {
+        tl: null, tr: null, bl: null, br: null
+      };
+      let distances = {
+        tl: 0, tr: 0, bl: 0, br: 0
+      };
+      
+      for (const [x, y] of edgePoints) {
+        // Top-left quadrant
+        if (x < midX && y < midY) {
+          const dist = Math.sqrt((x - minX)**2 + (y - minY)**2);
+          if (!corners.tl || dist < distances.tl) {
+            corners.tl = [x, y];
+            distances.tl = dist;
+          }
+        }
+        // Top-right quadrant
+        else if (x >= midX && y < midY) {
+          const dist = Math.sqrt((x - maxX)**2 + (y - minY)**2);
+          if (!corners.tr || dist < distances.tr) {
+            corners.tr = [x, y];
+            distances.tr = dist;
+          }
+        }
+        // Bottom-left quadrant
+        else if (x < midX && y >= midY) {
+          const dist = Math.sqrt((x - minX)**2 + (y - maxY)**2);
+          if (!corners.bl || dist < distances.bl) {
+            corners.bl = [x, y];
+            distances.bl = dist;
+          }
+        }
+        // Bottom-right quadrant
+        else if (x >= midX && y >= midY) {
+          const dist = Math.sqrt((x - maxX)**2 + (y - maxY)**2);
+          if (!corners.br || dist < distances.br) {
+            corners.br = [x, y];
+            distances.br = dist;
+          }
+        }
+      }
+      
+      // Check if we found all corners
+      if (!corners.tl || !corners.tr || !corners.bl || !corners.br) {
+        return null;
+      }
+      
+      return [corners.tl, corners.tr, corners.br, corners.bl];
     }
 
     // === Document Detection Loop ===
     function detectFrame() {
-      if (!autoDetect || isProcessing || video.readyState !== 4) {
-        if (autoDetect) requestAnimationFrame(detectFrame);
+      if (!autoDetect || isProcessing || video.readyState !== 4 || manualMode) {
+        if (autoDetect && !manualMode) requestAnimationFrame(detectFrame);
         return;
       }
       
       try {
-        // Get video frame to canvas
+        // Get video frame
         hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
-        let frame = hiddenCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height);
-        let src = cv.matFromImageData(frame);
-        let gray = new cv.Mat();
-        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-        let blur = new cv.Mat();
-        cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
-        let edges = new cv.Mat();
-        cv.Canny(blur, edges, edgeThreshold, edgeThreshold * 2);
-
-        let contours = new cv.MatVector();
-        let hierarchy = new cv.Mat();
-        cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+        const frame = hiddenCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height);
         
-        // Debug info - this was missing in the new version!
-        console.log('Contours found:', contours.size());
-        debugInfo.textContent = `Contours: ${contours.size()}`;
-
-        // Find largest quadrilateral
-        let best = null, maxArea = 0;
-        const minAreaThreshold = hiddenCanvas.width * hiddenCanvas.height * minAreaPct / 100;
+        // Simple edge detection
+        const edges = detectEdges(frame);
         
-        for (let i = 0; i < contours.size(); ++i) {
-          let cnt = contours.get(i);
-          let peri = cv.arcLength(cnt, true);
-          let approx = new cv.Mat();
-          cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
-          
-          if (approx.rows === 4) {
-            let area = cv.contourArea(cnt);
-            if (area > maxArea && area > minAreaThreshold) {
-              maxArea = area;
-              if (best) best.delete();
-              best = approx.clone();
-            }
-          }
-          approx.delete();
-          cnt.delete();
-        }
+        // Find document
+        const corners = findDocumentCorners(edges);
         
         // Draw overlay
         overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
         const now = Date.now();
         
-        if (best) {
-          // Extract corners
-          let pts = [];
-          for (let i = 0; i < 4; ++i) {
-            let p = best.intPtr(i, 0);
-            pts.push([p[0], p[1]]);
-          }
-          lastCorners = orderCorners(pts);
+        if (corners) {
+          lastCorners = corners;
           lastDetection = now;
-          best.delete();
-          debugInfo.textContent = `Document found! Area: ${Math.round(maxArea)}`;
+          debugInfo.textContent = 'Document found!';
         }
         
         // Draw if recent detection
@@ -294,25 +424,113 @@
           detectionLabel.textContent = 'Searching…';
           detectionLabel.classList.remove('detected');
           lastCorners = null;
-          if (!best) {
-            debugInfo.textContent = `Contours: ${contours.size()}, No documents`;
-          }
+          debugInfo.textContent = 'No document detected';
         }
-        
-        // Clean up
-        src.delete(); 
-        gray.delete(); 
-        blur.delete(); 
-        edges.delete(); 
-        contours.delete(); 
-        hierarchy.delete();
         
       } catch (error) {
         console.error('Detection error:', error);
-        debugInfo.textContent = 'Detection error';
+        debugInfo.textContent = 'Detection error: ' + error.message;
       }
       
       requestAnimationFrame(detectFrame);
+    }
+    
+    // === Manual Mode ===
+    function initManualMode() {
+      const w = overlay.width;
+      const h = overlay.height;
+      
+      // Default corners at 20% margins
+      manualCorners = [
+        [w * 0.2, h * 0.2],
+        [w * 0.8, h * 0.2],
+        [w * 0.8, h * 0.8],
+        [w * 0.2, h * 0.8]
+      ];
+      
+      lastCorners = manualCorners;
+      drawManualOverlay();
+      setupCornerDragging();
+    }
+    
+    function clearManualMode() {
+      // Remove corner markers
+      document.querySelectorAll('.corner-marker').forEach(m => m.remove());
+      overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+      lastCorners = null;
+      manualCorners = null;
+    }
+    
+    function drawManualOverlay() {
+      overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+      if (manualCorners) {
+        drawPolygon(manualCorners, "#2ef516");
+      }
+    }
+    
+    function setupCornerDragging() {
+      // Remove existing markers
+      document.querySelectorAll('.corner-marker').forEach(m => m.remove());
+      
+      manualCorners.forEach((corner, idx) => {
+        const marker = document.createElement('div');
+        marker.className = 'corner-marker';
+        marker.style.left = corner[0] + 'px';
+        marker.style.top = corner[1] + 'px';
+        marker.dataset.cornerIndex = idx;
+        
+        // Mouse events
+        marker.addEventListener('mousedown', startDragging);
+        // Touch events
+        marker.addEventListener('touchstart', startDragging);
+        
+        document.getElementById('camera-container').appendChild(marker);
+      });
+    }
+    
+    function startDragging(e) {
+      e.preventDefault();
+      const marker = e.target;
+      marker.classList.add('dragging');
+      draggedCorner = parseInt(marker.dataset.cornerIndex);
+      
+      const moveHandler = (e) => {
+        const rect = overlay.getBoundingClientRect();
+        let x, y;
+        
+        if (e.touches) {
+          x = e.touches[0].clientX - rect.left;
+          y = e.touches[0].clientY - rect.top;
+        } else {
+          x = e.clientX - rect.left;
+          y = e.clientY - rect.top;
+        }
+        
+        // Constrain to canvas bounds
+        x = Math.max(0, Math.min(overlay.width, x));
+        y = Math.max(0, Math.min(overlay.height, y));
+        
+        manualCorners[draggedCorner] = [x, y];
+        marker.style.left = x + 'px';
+        marker.style.top = y + 'px';
+        
+        lastCorners = manualCorners;
+        drawManualOverlay();
+      };
+      
+      const endHandler = () => {
+        marker.classList.remove('dragging');
+        draggedCorner = null;
+        document.removeEventListener('mousemove', moveHandler);
+        document.removeEventListener('mouseup', endHandler);
+        document.removeEventListener('touchmove', moveHandler);
+        document.removeEventListener('touchend', endHandler);
+      };
+      
+      document.addEventListener('mousemove', moveHandler);
+      document.addEventListener('mouseup', endHandler);
+      document.addEventListener('touchmove', moveHandler);
+      document.addEventListener('touchend', endHandler);
     }
     
     // Draw detected polygon/corners
@@ -324,6 +542,8 @@
       for (let i = 1; i < 4; ++i) overlayCtx.lineTo(corners[i][0], corners[i][1]);
       overlayCtx.closePath();
       overlayCtx.stroke();
+      
+      // Draw corner circles
       for (let c of corners) {
         overlayCtx.beginPath();
         overlayCtx.arc(c[0], c[1], 8, 0, 2 * Math.PI);
@@ -331,21 +551,13 @@
         overlayCtx.fill();
       }
     }
-    
-    // Robust corner order: tl, tr, br, bl
-    function orderCorners(pts) {
-      pts = pts.slice().sort((a, b) => a[1] - b[1]);
-      let [t1, t2, b1, b2] = pts;
-      let [tl, tr] = [t1, t2].sort((a, b) => a[0] - b[0]);
-      let [bl, br] = [b1, b2].sort((a, b) => a[0] - b[0]);
-      return [tl, tr, br, bl];
-    }
 
     // === Capture, Perspective Transform, Save ===
     function captureDocument() {
       if (isProcessing) return;
       isProcessing = true;
       let imgData;
+      
       if (lastCorners) {
         imgData = extractDocument(lastCorners);
         showStatus('Document transformed!', 'success');
@@ -354,6 +566,7 @@
         imgData = hiddenCanvas.toDataURL('image/jpeg', 0.95);
         showStatus('Full frame captured!', 'success');
       }
+      
       currentPageData = imgData;
       preview.style.display = 'block';
       previewImg.src = imgData;
@@ -362,6 +575,7 @@
     }
     
     function extractDocument(corners) {
+      // Calculate output dimensions
       const w = Math.max(
         dist(corners[0], corners[1]),
         dist(corners[2], corners[3])
@@ -370,22 +584,43 @@
         dist(corners[0], corners[3]),
         dist(corners[1], corners[2])
       );
+      
+      // Create output canvas
+      const outCanvas = document.createElement('canvas');
+      outCanvas.width = w;
+      outCanvas.height = h;
+      const outCtx = outCanvas.getContext('2d');
+      
+      // Get source image
       hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
-      let src = cv.matFromImageData(hiddenCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height));
-      let dst = new cv.Mat();
-      let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [].concat(...corners));
-      let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, w, 0, w, h, 0, h]);
-      let M = cv.getPerspectiveTransform(srcTri, dstTri);
-      cv.warpPerspective(src, dst, M, new cv.Size(w, h));
-      let outCanvas = document.createElement('canvas');
-      outCanvas.width = w; outCanvas.height = h;
-      cv.imshow(outCanvas, dst);
-      let outURL = outCanvas.toDataURL('image/jpeg', 0.95);
-      src.delete(); dst.delete(); srcTri.delete(); dstTri.delete(); M.delete();
-      return outURL;
+      
+      // For simple implementation without OpenCV, we'll use a basic approach
+      // This won't do true perspective correction but will work for roughly aligned documents
+      
+      // Draw using canvas transform (simplified)
+      outCtx.save();
+      
+      // This is a simplified version - for true perspective transform you'd need more complex math
+      // For now, just crop to the bounding box of the corners
+      const minX = Math.min(...corners.map(c => c[0]));
+      const minY = Math.min(...corners.map(c => c[1]));
+      const maxX = Math.max(...corners.map(c => c[0]));
+      const maxY = Math.max(...corners.map(c => c[1]));
+      
+      outCtx.drawImage(
+        hiddenCanvas,
+        minX, minY, maxX - minX, maxY - minY,
+        0, 0, w, h
+      );
+      
+      outCtx.restore();
+      
+      return outCanvas.toDataURL('image/jpeg', 0.95);
     }
     
-    function dist(a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); }
+    function dist(a, b) { 
+      return Math.hypot(a[0] - b[0], a[1] - b[1]); 
+    }
 
     // === Feedback helpers ===
     function showStatus(msg, type = 'info') {
@@ -395,9 +630,9 @@
     }
 
     // === Initialize ===
-    cv['onRuntimeInitialized'] = () => {
-      console.log('OpenCV.js loaded successfully');
-      debugInfo.textContent = 'OpenCV loaded';
+    window.onload = () => {
+      console.log('Starting camera...');
+      debugInfo.textContent = 'Starting...';
       startCamera();
     };
     
