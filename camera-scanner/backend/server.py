@@ -7,6 +7,11 @@ from pathlib import Path
 import uvicorn
 import ssl
 import json
+from PIL import Image
+import io
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.utils import ImageReader
 
 app = FastAPI()
 
@@ -47,7 +52,7 @@ async def serve_script():
         return HTMLResponse(content="// script.js not found", status_code=404)
     return FileResponse(script_path)
 
-# Handle image saving
+# Handle single image saving (keeping for backward compatibility)
 @app.post("/save-image")
 async def save_image(req: Request):
     try:
@@ -69,6 +74,84 @@ async def save_image(req: Request):
         })
     except Exception as e:
         print(f"❌ Error saving image: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+# Handle PDF creation from multiple pages
+@app.post("/save-pdf")
+async def save_pdf(req: Request):
+    try:
+        data = await req.json()
+        pages = data.get('pages', [])
+        
+        if not pages:
+            return JSONResponse({"status": "error", "message": "No pages provided"}, status_code=400)
+        
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        pdf_filename = SAVE_DIR / f"doc_{timestamp}.pdf"
+        
+        # Create PDF
+        c = canvas.Canvas(str(pdf_filename), pagesize=A4)
+        page_width, page_height = A4
+        
+        for i, page_data in enumerate(pages):
+            # Extract base64 data
+            img_data = page_data.split(',')[1]
+            img_bytes = base64.b64decode(img_data)
+            
+            # Open image with PIL
+            img = Image.open(io.BytesIO(img_bytes))
+            
+            # Calculate dimensions to fit page while maintaining aspect ratio
+            img_width, img_height = img.size
+            aspect = img_height / float(img_width)
+            
+            # Fit to page with margins
+            margin = 50
+            available_width = page_width - (2 * margin)
+            available_height = page_height - (2 * margin)
+            
+            if img_width > img_height:
+                # Landscape orientation
+                new_width = available_width
+                new_height = new_width * aspect
+                if new_height > available_height:
+                    new_height = available_height
+                    new_width = new_height / aspect
+            else:
+                # Portrait orientation
+                new_height = available_height
+                new_width = new_height / aspect
+                if new_width > available_width:
+                    new_width = available_width
+                    new_height = new_width * aspect
+            
+            # Center on page
+            x = (page_width - new_width) / 2
+            y = (page_height - new_height) / 2
+            
+            # Draw image on PDF
+            img_reader = ImageReader(img)
+            c.drawImage(img_reader, x, y, width=new_width, height=new_height)
+            
+            # Add new page if not the last image
+            if i < len(pages) - 1:
+                c.showPage()
+        
+        # Save PDF
+        c.save()
+        
+        print(f"✅ Saved PDF with {len(pages)} pages: {pdf_filename}")
+        return JSONResponse({
+            "status": "saved",
+            "file": str(pdf_filename),
+            "pages": len(pages),
+            "timestamp": timestamp
+        })
+        
+    except Exception as e:
+        print(f"❌ Error creating PDF: {e}")
         import traceback
         traceback.print_exc()
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
@@ -127,6 +210,6 @@ if __name__ == "__main__":
             print(f"\n❌ Error starting server: {e}")
             print("\nPossible issues:")
             print("1. Port might be in use - try closing other applications")
-            print("2. Missing dependencies - run: pip install fastapi uvicorn")
+            print("2. Missing dependencies - run: pip install -r requirements.txt")
             import traceback
             traceback.print_exc()
