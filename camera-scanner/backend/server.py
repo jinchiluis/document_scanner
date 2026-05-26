@@ -13,24 +13,30 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.utils import ImageReader
 
+# Import our image processor
+from image_processor import process_document_image, process_multiple_pages
+
 app = FastAPI()
 
 # Get the project root directory (parent of backend folder)
 BACKEND_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BACKEND_DIR.parent
 
-# Setup save directory inside Dropbox
-# Files should be placed under a dated folder inside
-# ``C:\Users\jinch\Dropbox\SCAN-Dokuments``.  The folder name uses
-# the format ``YYMMDD`` (year, month, day).  The directory should only
-# be created when the first document is saved
-ROOT_SAVE_DIR = Path(r"C:\Users\jinch\Dropbox\SCAN-Dokuments")
-DATE_FOLDER = datetime.now().strftime("%y%m%d")
-SAVE_DIR = ROOT_SAVE_DIR / DATE_FOLDER
+# Setup paths
+SAVE_DIR = BACKEND_DIR / "saved_docs"
+SAVE_DIR.mkdir(parents=True, exist_ok=True)
 
 print(f"📁 Backend directory: {BACKEND_DIR}")
 print(f"📁 Project root: {PROJECT_ROOT}")
 print(f"📁 Save directory: {SAVE_DIR}")
+
+# Configuration for image processing
+IMAGE_PROCESSING_CONFIG = {
+    "enhance": True,
+    "doc_type": "mixed",  # Options: 'text', 'mixed', 'photo'
+    "auto_crop": True,
+    "auto_rotate_enabled": True
+}
 
 # Serve the HTML file at root
 @app.get("/")
@@ -62,21 +68,30 @@ async def serve_script():
 async def save_image(req: Request):
     try:
         data = await req.json()
-        img_data = data['image'].split(',')[1]
-        img_bytes = base64.b64decode(img_data)
+        img_data = data['image']
+        
+        # Process image with OpenCV
+        print("🔄 Processing image with OpenCV...")
+        processed_img_data = process_document_image(
+            img_data,
+            **IMAGE_PROCESSING_CONFIG
+        )
+        
+        # Extract base64 data
+        img_bytes = base64.b64decode(processed_img_data.split(',')[1])
         
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        SAVE_DIR.mkdir(parents=True, exist_ok=True)
         filename = SAVE_DIR / f"doc_{timestamp}.png"
         
         with open(filename, 'wb') as f:
             f.write(img_bytes)
             
-        print(f"✅ Saved image: {filename}")
+        print(f"✅ Saved processed image: {filename}")
         return JSONResponse({
             "status": "saved", 
             "file": str(filename), 
-            "timestamp": timestamp
+            "timestamp": timestamp,
+            "processed": True
         })
     except Exception as e:
         print(f"❌ Error saving image: {e}")
@@ -94,15 +109,20 @@ async def save_pdf(req: Request):
         if not pages:
             return JSONResponse({"status": "error", "message": "No pages provided"}, status_code=400)
         
+        # Process all pages with OpenCV
+        print(f"🔄 Processing {len(pages)} pages with OpenCV...")
+        processed_pages = process_multiple_pages(pages, **IMAGE_PROCESSING_CONFIG)
+        
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        SAVE_DIR.mkdir(parents=True, exist_ok=True)
         pdf_filename = SAVE_DIR / f"doc_{timestamp}.pdf"
         
         # Create PDF
         c = canvas.Canvas(str(pdf_filename), pagesize=A4)
         page_width, page_height = A4
         
-        for i, page_data in enumerate(pages):
+        for i, page_data in enumerate(processed_pages):
+            print(f"  Adding page {i + 1} to PDF...")
+            
             # Extract base64 data
             img_data = page_data.split(',')[1]
             img_bytes = base64.b64decode(img_data)
@@ -143,18 +163,19 @@ async def save_pdf(req: Request):
             c.drawImage(img_reader, x, y, width=new_width, height=new_height)
             
             # Add new page if not the last image
-            if i < len(pages) - 1:
+            if i < len(processed_pages) - 1:
                 c.showPage()
         
         # Save PDF
         c.save()
         
-        print(f"✅ Saved PDF with {len(pages)} pages: {pdf_filename}")
+        print(f"✅ Saved PDF with {len(processed_pages)} processed pages: {pdf_filename}")
         return JSONResponse({
             "status": "saved",
             "file": str(pdf_filename),
-            "pages": len(pages),
-            "timestamp": timestamp
+            "pages": len(processed_pages),
+            "timestamp": timestamp,
+            "processed": True
         })
         
     except Exception as e:
@@ -163,13 +184,42 @@ async def save_pdf(req: Request):
         traceback.print_exc()
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
+# New endpoint to configure image processing
+@app.post("/configure-processing")
+async def configure_processing(req: Request):
+    """Update image processing configuration"""
+    try:
+        global IMAGE_PROCESSING_CONFIG
+        config = await req.json()
+        IMAGE_PROCESSING_CONFIG.update(config)
+        print(f"📋 Updated processing config: {IMAGE_PROCESSING_CONFIG}")
+        return JSONResponse({"status": "updated", "config": IMAGE_PROCESSING_CONFIG})
+    except Exception as e:
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+# Get current configuration
+@app.get("/processing-config")
+async def get_processing_config():
+    """Get current image processing configuration"""
+    return JSONResponse(IMAGE_PROCESSING_CONFIG)
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "save_dir": str(SAVE_DIR)}
+    return {
+        "status": "ok",
+        "save_dir": str(SAVE_DIR),
+        "processing_enabled": True,
+        "processing_config": IMAGE_PROCESSING_CONFIG
+    }
 
 if __name__ == "__main__":
-    print("\n🚀 Starting Document Scanner Server...")
+    print("\n🚀 Starting Document Scanner Server with Image Processing...")
+    print("📷 OpenCV processing is ENABLED")
+    print(f"   - Auto-crop: {IMAGE_PROCESSING_CONFIG['auto_crop']}")
+    print(f"   - Enhancement: {IMAGE_PROCESSING_CONFIG['enhance']}")
+    print(f"   - Document type: {IMAGE_PROCESSING_CONFIG['doc_type']}")
+    print(f"   - Auto-rotate: {IMAGE_PROCESSING_CONFIG['auto_rotate_enabled']}")
     
     # Check if we have SSL certificates
     cert_path = BACKEND_DIR / "cert.pem"
@@ -177,7 +227,7 @@ if __name__ == "__main__":
     cert_exists = cert_path.exists() and key_path.exists()
     
     if cert_exists:
-        print(f"🔒 SSL certificates found!")
+        print(f"\n🔒 SSL certificates found!")
         print(f"   - Certificate: {cert_path}")
         print(f"   - Private key: {key_path}")
         print(f"\n📱 Starting HTTPS server...")
