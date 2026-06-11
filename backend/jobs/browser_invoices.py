@@ -20,6 +20,7 @@ UA = (
 )
 
 BROWSER_STATE_DIR = BACKEND_DIR / "browser_state"
+BROWSER_PROFILE_DIR = BACKEND_DIR / "browser_profiles"
 MAX_PLAYWRIGHT = 1
 DEFAULT_LOGIN_TIMEOUT_MS = 5 * 60 * 1000
 _playwright_sem = threading.BoundedSemaphore(MAX_PLAYWRIGHT)
@@ -131,36 +132,107 @@ def _state_path(provider: InvoiceProvider) -> Path:
     return BROWSER_STATE_DIR / provider.state_file
 
 
-def _new_context(browser: Any, state_path: Path | None = None):
-    kwargs: dict[str, Any] = {
+def _profile_path(provider: InvoiceProvider) -> Path:
+    return BROWSER_PROFILE_DIR / provider.source
+
+
+def _context_kwargs(headless: bool) -> dict[str, Any]:
+    return {
         "accept_downloads": True,
+        "headless": headless,
+        "args": ["--disable-blink-features=AutomationControlled"],
         "user_agent": UA,
         "viewport": {"width": 1366, "height": 850},
     }
-    if state_path and state_path.exists():
-        kwargs["storage_state"] = str(state_path)
-    return browser.new_context(**kwargs)
 
 
-def _launch_chromium(p: Any, headless: bool):
-    launch_kwargs = {
-        "headless": headless,
-        "args": ["--disable-blink-features=AutomationControlled"],
-    }
+def _launch_persistent_context(p: Any, profile_path: Path, headless: bool):
+    profile_path.parent.mkdir(parents=True, exist_ok=True)
+    launch_kwargs = _context_kwargs(headless)
     channel = os.environ.get("PLAYWRIGHT_BROWSER_CHANNEL", "").strip()
     if channel:
-        return p.chromium.launch(channel=channel, **launch_kwargs)
+        return p.chromium.launch_persistent_context(str(profile_path), channel=channel, **launch_kwargs)
 
     try:
-        return p.chromium.launch(**launch_kwargs)
-    except Exception as bundled_error:
-        last_error = bundled_error
-        for fallback_channel in ("chrome", "msedge"):
+        return p.chromium.launch_persistent_context(str(profile_path), channel="chrome", **launch_kwargs)
+    except Exception as chrome_error:
+        last_error = chrome_error
+        try:
+            return p.chromium.launch_persistent_context(str(profile_path), **launch_kwargs)
+        except Exception as bundled_error:
+            last_error = bundled_error
+        try:
+            return p.chromium.launch_persistent_context(str(profile_path), channel="msedge", **launch_kwargs)
+        except Exception as edge_error:
+            last_error = edge_error
+        raise last_error from chrome_error
+
+
+def _profile_has_data(profile_path: Path) -> bool:
+    try:
+        return profile_path.exists() and any(profile_path.iterdir())
+    except OSError:
+        return False
+
+
+def _page_for_context(ctx: Any):
+    if ctx.pages:
+        return ctx.pages[0]
+    return ctx.new_page()
+
+
+def _save_storage_state(ctx: Any, state_path: Path) -> None:
+    try:
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        ctx.storage_state(path=str(state_path))
+    except Exception:
+        pass
+
+
+def _import_storage_state(ctx: Any, state_path: Path) -> None:
+    if not state_path.exists():
+        return
+
+    try:
+        with state_path.open("r", encoding="utf-8") as state_file:
+            state = json.load(state_file)
+    except (OSError, json.JSONDecodeError):
+        return
+
+    cookies = state.get("cookies")
+    if isinstance(cookies, list) and cookies:
+        try:
+            ctx.add_cookies(cookies)
+        except Exception:
+            pass
+
+    origins = state.get("origins")
+    if not isinstance(origins, list):
+        return
+
+    page = ctx.new_page()
+    try:
+        for origin_state in origins:
+            origin = origin_state.get("origin") if isinstance(origin_state, dict) else None
+            local_storage = origin_state.get("localStorage") if isinstance(origin_state, dict) else None
+            if not origin or not isinstance(local_storage, list):
+                continue
             try:
-                return p.chromium.launch(channel=fallback_channel, **launch_kwargs)
-            except Exception as exc:
-                last_error = exc
-        raise last_error from bundled_error
+                page.goto(origin, wait_until="domcontentloaded", timeout=30000)
+                page.evaluate(
+                    """entries => {
+                        for (const entry of entries) {
+                            if (entry && typeof entry.name === 'string') {
+                                localStorage.setItem(entry.name, String(entry.value ?? ''));
+                            }
+                        }
+                    }""",
+                    local_storage,
+                )
+            except Exception:
+                continue
+    finally:
+        page.close()
 
 
 def _wait_for_login_completion(provider: InvoiceProvider, page: Any, timeout_ms: int) -> None:
@@ -189,12 +261,23 @@ def _wait_for_login_completion(provider: InvoiceProvider, page: Any, timeout_ms:
 
 
 def _ensure_login(
-    p: Any,
     provider: InvoiceProvider,
+    ctx: Any,
     state_path: Path,
-    headless: bool,
     login_timeout_ms: int,
+    force_login: bool = False,
 ) -> None:
+    page = _page_for_context(ctx)
+    if not force_login:
+        try:
+            page.goto(provider.start_url, wait_until="domcontentloaded", timeout=60000)
+            accept_common_consent(page)
+            if provider.login_check and provider.login_check(page):
+                _save_storage_state(ctx, state_path)
+                return
+        except Exception:
+            pass
+
     email = os.environ.get(provider.email_env, "")
     password = os.environ.get(provider.password_env, "")
     if not email or not password:
@@ -202,17 +285,16 @@ def _ensure_login(
             f"Missing credentials. Set {provider.email_env} and {provider.password_env} in the server environment."
         )
 
-    browser = _launch_chromium(p, headless=headless)
     try:
-        ctx = _new_context(browser)
-        page = ctx.new_page()
         provider.login(page, email, password)
+    except Exception:
+        if not provider.login_check or not provider.login_check(page):
+            raise
+
+    try:
         _wait_for_login_completion(provider, page, login_timeout_ms)
-        state_path.parent.mkdir(parents=True, exist_ok=True)
-        ctx.storage_state(path=str(state_path))
-        ctx.close()
     finally:
-        browser.close()
+        _save_storage_state(ctx, state_path)
 
 
 def download_browser_invoices(
@@ -232,6 +314,8 @@ def download_browser_invoices(
     output_dir = source_folder(provider.source) / f"{date_from}_to_{date_to}"
     output_dir.mkdir(parents=True, exist_ok=True)
     state_path = _state_path(provider)
+    profile_path = _profile_path(provider)
+    profile_had_data = _profile_has_data(profile_path)
 
     try:
         from playwright.sync_api import sync_playwright
@@ -243,45 +327,40 @@ def download_browser_invoices(
 
     with _playwright_sem:
         with sync_playwright() as p:
-            if force_login or not state_path.exists():
+            ctx = _launch_persistent_context(p, profile_path, headless=headless)
+            try:
+                if not profile_had_data:
+                    _import_storage_state(ctx, state_path)
+
                 _ensure_login(
-                    p,
                     provider,
+                    ctx,
                     state_path,
-                    headless=headless,
                     login_timeout_ms=login_timeout_ms,
+                    force_login=force_login,
                 )
 
-            browser = _launch_chromium(p, headless=headless)
-            try:
-                ctx = _new_context(browser, state_path)
-                page = ctx.new_page()
+                page = _page_for_context(ctx)
                 page.goto(provider.start_url, wait_until="domcontentloaded", timeout=60000)
                 accept_common_consent(page)
                 if provider.login_check and not provider.login_check(page):
-                    ctx.close()
-                    browser.close()
                     _ensure_login(
-                        p,
                         provider,
+                        ctx,
                         state_path,
-                        headless=headless,
                         login_timeout_ms=login_timeout_ms,
+                        force_login=True,
                     )
-                    browser = _launch_chromium(p, headless=headless)
-                    ctx = _new_context(browser, state_path)
-                    page = ctx.new_page()
                     page.goto(provider.start_url, wait_until="domcontentloaded", timeout=60000)
                     accept_common_consent(page)
 
                 result = provider.collect(page, start_date, end_date, output_dir)
+                _save_storage_state(ctx, state_path)
+            finally:
                 try:
-                    ctx.storage_state(path=str(state_path))
+                    ctx.close()
                 except Exception:
                     pass
-                ctx.close()
-            finally:
-                browser.close()
 
     downloaded = result.get("downloaded", [])
     errors = result.get("errors", [])
@@ -292,6 +371,7 @@ def download_browser_invoices(
         "date_to": date_to,
         "output_dir": str(output_dir),
         "state_path": str(state_path),
+        "profile_path": str(profile_path),
         "downloaded_count": len(downloaded),
         "error_count": len(errors),
         **result,

@@ -28,6 +28,7 @@ Thumbs.db
 backend/config.json
 backend/saved_docs/
 backend/browser_state/
+backend/browser_profiles/
 backend/job_state.json
 .tmp-*.log
 .tmp-chrome-profile

@@ -346,8 +346,9 @@ document.querySelectorAll(".nav-list a[data-page]").forEach((link) => {
     const page = link.dataset.page;
     document.querySelectorAll(".nav-list a").forEach((a) => a.classList.remove("active"));
     link.classList.add("active");
-    document.getElementById("page-overview").hidden = page !== "overview";
-    document.getElementById("page-sources").hidden = page !== "sources";
+    document.querySelectorAll(".content").forEach((section) => {
+      section.hidden = section.id !== `page-${page}`;
+    });
   });
 });
 
