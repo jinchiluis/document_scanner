@@ -273,10 +273,23 @@
     }
     
     .result-actions {
-      display: flex;
-      gap: 15px;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+      gap: 10px;
       margin-top: 20px;
+      width: 100%;
+    }
+
+    .result-actions button {
+      justify-content: center;
+      min-width: 0;
+      padding: 13px 14px;
+      width: 100%;
+    }
+
+    .result-actions button span:last-child {
+      overflow-wrap: anywhere;
+      text-align: center;
     }
     
     #toast {
@@ -441,6 +454,10 @@
         <button onclick="saveToServer()" class="primary-btn">
           <span>💾</span>
           <span>Save as PDF</span>
+        </button>
+        <button onclick="savePagesToServer()" class="secondary-btn">
+          <span>JPG</span>
+          <span>Save as JPGs</span>
         </button>
         <button onclick="retake()" class="secondary-btn">
           <span>🔄</span>
@@ -829,14 +846,7 @@
           totalScans++;
           scanCount.textContent = totalScans;
           showToast(`PDF saved with ${scannedPages.length} page${scannedPages.length > 1 ? 's' : ''}!`, 'success');
-          
-          // Clear pages and reset
-          scannedPages = [];
-          currentPageIndex = 0;
-          setTimeout(() => {
-            resultSection.style.display = 'none';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }, 2000);
+          resetAfterSave();
         } else {
           throw new Error('Server error');
         }
@@ -844,6 +854,46 @@
         showToast('Failed to save PDF. Is the server running?', 'error');
         console.error('Save error:', err);
       }
+    }
+
+    async function savePagesToServer() {
+      if (scannedPages.length === 0) {
+        showToast('No pages to save', 'error');
+        return;
+      }
+
+      try {
+        showToast('Saving JPG pages...', '');
+
+        const response = await fetch('/save-pages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pages: scannedPages })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const savedPages = data.pages || scannedPages.length;
+          totalScans += savedPages;
+          scanCount.textContent = totalScans;
+          showToast(`${savedPages} JPG page${savedPages > 1 ? 's' : ''} saved!`, 'success');
+          resetAfterSave();
+        } else {
+          throw new Error('Server error');
+        }
+      } catch (err) {
+        showToast('Failed to save JPG pages. Is the server running?', 'error');
+        console.error('Save pages error:', err);
+      }
+    }
+
+    function resetAfterSave() {
+      scannedPages = [];
+      currentPageIndex = 0;
+      setTimeout(() => {
+        resultSection.style.display = 'none';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 2000);
     }
     
     function retake() {

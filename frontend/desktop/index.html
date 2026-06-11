@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Invoice Helper Desktop</title>
+  <link rel="stylesheet" href="/desktop-static/desktop.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <aside class="sidebar" aria-label="Workspace navigation">
+      <div class="brand">
+        <div class="brand-mark">IH</div>
+        <div>
+          <strong>Invoice Helper</strong>
+          <span>Desktop workspace</span>
+        </div>
+      </div>
+
+      <nav class="nav-list">
+        <a class="active" href="#" data-page="overview">Overview</a>
+        <a href="#" data-page="sources">Invoice Sources</a>
+      </nav>
+
+    </aside>
+
+    <section class="content" id="page-overview">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Local invoice helper</p>
+          <h1>Quarter overview</h1>
+          <p class="lede">Everything saved, downloaded, and processed for the current invoice quarter.</p>
+        </div>
+        <button id="refresh-btn" class="secondary-btn" type="button">Refresh</button>
+      </header>
+
+      <section class="stats-grid" aria-label="Folder statistics">
+        <article class="stat large">
+          <span class="label">Active scan folder</span>
+          <strong id="scan-folder-display">Synced from folder settings</strong>
+        </article>
+        <article class="stat">
+          <span class="label">Scans</span>
+          <strong id="scan-count">0</strong>
+        </article>
+        <article class="stat">
+          <span class="label">Documents</span>
+          <strong id="document-count">0</strong>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="section-title">
+          <div>
+            <h2>Quarter Folder</h2>
+            <p>Choose the root folder where scans and downloaded invoices are stored.</p>
+          </div>
+        </div>
+        <label for="active-folder">Active folder</label>
+        <div class="folder-row">
+          <input id="active-folder" type="text" spellcheck="false" readonly />
+          <button id="save-folder-btn" type="button">Choose folder</button>
+        </div>
+        <p class="hint">Scans are saved into the configured scan subfolder inside this folder.</p>
+      </section>
+
+      <section class="panel overview-documents">
+        <div class="section-title">
+          <div>
+            <h2>Recent Files</h2>
+            <p>Latest files found in the active folder.</p>
+          </div>
+        </div>
+        <div id="files-empty" class="empty">No files found in the active folder yet.</div>
+        <table id="files-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Size</th>
+              <th>Modified</th>
+            </tr>
+          </thead>
+          <tbody id="files-body"></tbody>
+        </table>
+      </section>
+    </section>
+
+    <section class="content" id="page-sources" hidden>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Local invoice helper</p>
+          <h1>Invoice Sources</h1>
+          <p class="lede">Run the connected download jobs for the selected date range.</p>
+        </div>
+      </header>
+
+      <section class="panel sources-panel">
+        <article class="source-card phone-source">
+          <div class="source-icon">P</div>
+          <div class="source-body">
+            <div class="source-head">
+              <div>
+                <h3>Phone Scanner</h3>
+                <p>Open the link on your phone to scan documents with the camera.</p>
+                <a id="phone-url" href="#" target="_blank" class="phone-url-link">Loading scanner URL…</a>
+              </div>
+              <img id="phone-qr" src="/api/runtime/phone-qr.svg" alt="QR code for phone scanner" class="phone-qr" />
+            </div>
+          </div>
+        </article>
+
+        <article class="source-card">
+          <div class="source-icon">O</div>
+          <div class="source-body">
+            <div class="source-head">
+              <div>
+                <h3>Outlook Attachments</h3>
+                <p>Inbox and optional subfolders, PDF attachments only.</p>
+              </div>
+            </div>
+            <div class="job-form">
+              <label>
+                From
+                <input id="outlook-date-from" type="date" />
+              </label>
+              <label>
+                To
+                <input id="outlook-date-to" type="date" />
+              </label>
+              <label class="checkbox-label">
+                <input id="outlook-subfolders" type="checkbox" checked />
+                Include Inbox subfolders
+              </label>
+              <button id="outlook-run-btn" type="button">Download</button>
+            </div>
+            <div id="outlook-result" class="job-result"></div>
+          </div>
+        </article>
+
+        <article class="source-card">
+          <div class="source-icon">W</div>
+          <div class="source-body">
+            <div class="source-head">
+              <div>
+                <h3>Wix Invoices</h3>
+                <p>Browser automation for Wix invoice PDFs and subscription dates.</p>
+              </div>
+            </div>
+            <div class="job-form">
+              <label>
+                From
+                <input id="wix-date-from" type="date" />
+              </label>
+              <label>
+                To
+                <input id="wix-date-to" type="date" />
+              </label>
+              <label class="checkbox-label">
+                <input id="wix-force-login" type="checkbox" checked />
+                Force login / 2FA
+              </label>
+              <button id="wix-run-btn" type="button">Run</button>
+            </div>
+            <div id="wix-next-invoice" class="next-invoice"></div>
+            <div id="wix-result" class="job-result"></div>
+          </div>
+        </article>
+
+        <article class="source-card">
+          <div class="source-icon">D</div>
+          <div class="source-body">
+            <div class="source-head">
+              <div>
+                <h3>Dropbox Invoices</h3>
+                <p>Business billing PDFs from the Dropbox account.</p>
+              </div>
+            </div>
+            <div class="job-form">
+              <label>
+                From
+                <input id="dropbox-date-from" type="date" />
+              </label>
+              <label>
+                To
+                <input id="dropbox-date-to" type="date" />
+              </label>
+              <label class="checkbox-label">
+                <input id="dropbox-force-login" type="checkbox" checked />
+                Force login / 2FA
+              </label>
+              <button id="dropbox-run-btn" type="button">Run</button>
+            </div>
+            <div id="dropbox-result" class="job-result"></div>
+          </div>
+        </article>
+      </section>
+    </section>
+  </main>
+  <div id="toast"></div>
+  <script src="/desktop-static/desktop.js"></script>
+</body>
+</html>

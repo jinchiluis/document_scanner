@@ -22,3 +22,12 @@ Thumbs.db
 .DS_Store
 .mcp.json
 .claude/
+
+# Local app state
+.env
+backend/config.json
+backend/saved_docs/
+backend/browser_state/
+backend/job_state.json
+.tmp-*.log
+.tmp-chrome-profile
