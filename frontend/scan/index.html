@@ -10,15 +10,15 @@
       padding: 0;
       box-sizing: border-box;
     }
-    
-    body { 
+
+    body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
       min-height: 100vh;
       color: #fff;
       overflow-x: hidden;
     }
-    
+
     header {
       padding: 20px;
       text-align: center;
@@ -26,7 +26,7 @@
       backdrop-filter: blur(10px);
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    
+
     h1 {
       font-size: 28px;
       font-weight: 600;
@@ -35,32 +35,32 @@
       -webkit-text-fill-color: transparent;
       margin-bottom: 5px;
     }
-    
+
     .subtitle {
       color: rgba(255,255,255,0.6);
       font-size: 14px;
     }
-    
+
     #camera-section {
       padding: 20px;
       max-width: 800px;
       margin: 0 auto;
     }
-    
-    #camera-container { 
-      position: relative; 
+
+    #camera-container {
+      position: relative;
       background: #000;
       border-radius: 20px;
       overflow: hidden;
       box-shadow: 0 20px 60px rgba(0,0,0,0.5);
       margin-bottom: 30px;
     }
-    
-    video, canvas { 
+
+    video, canvas {
       width: 100%;
       display: block;
     }
-    
+
     #overlay {
       position: absolute;
       top: 0;
@@ -70,7 +70,7 @@
       pointer-events: none;
       z-index: 10;
     }
-    
+
     #status-badge {
       position: absolute;
       top: 20px;
@@ -87,13 +87,13 @@
       gap: 8px;
       transition: all 0.3s ease;
     }
-    
+
     #status-badge.detected {
       background: rgba(0,255,0,0.2);
       border: 1px solid rgba(0,255,0,0.5);
       color: #00ff00;
     }
-    
+
     .pulse {
       width: 8px;
       height: 8px;
@@ -101,13 +101,13 @@
       border-radius: 50%;
       animation: pulse 1.5s infinite;
     }
-    
+
     @keyframes pulse {
       0% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.5; transform: scale(1.2); }
       100% { opacity: 1; transform: scale(1); }
     }
-    
+
     #controls {
       display: flex;
       gap: 15px;
@@ -115,7 +115,7 @@
       flex-wrap: wrap;
       margin-bottom: 30px;
     }
-    
+
     button {
       padding: 15px 30px;
       border-radius: 30px;
@@ -128,40 +128,40 @@
       align-items: center;
       gap: 8px;
     }
-    
+
     .primary-btn {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     }
-    
+
     .primary-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
     }
-    
+
     .secondary-btn {
       background: rgba(255,255,255,0.1);
       color: white;
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255,255,255,0.2);
     }
-    
+
     .secondary-btn:hover {
       background: rgba(255,255,255,0.2);
     }
-    
+
     .secondary-btn.active {
       background: rgba(255,255,255,0.2);
       border-color: #667eea;
       color: #667eea;
     }
-    
+
     button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
-    
+
     #settings {
       background: rgba(255,255,255,0.05);
       backdrop-filter: blur(10px);
@@ -170,23 +170,23 @@
       margin-bottom: 30px;
       border: 1px solid rgba(255,255,255,0.1);
     }
-    
+
     .slider-group {
       margin: 15px 0;
     }
-    
+
     .slider-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 8px;
     }
-    
+
     .slider-label {
       font-size: 14px;
       color: rgba(255,255,255,0.8);
     }
-    
+
     .slider-value {
       font-size: 14px;
       font-weight: 600;
@@ -194,7 +194,7 @@
       min-width: 40px;
       text-align: right;
     }
-    
+
     input[type="range"] {
       width: 100%;
       height: 6px;
@@ -203,7 +203,7 @@
       outline: none;
       -webkit-appearance: none;
     }
-    
+
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
       width: 18px;
@@ -213,48 +213,48 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
-    
+
     input[type="range"]::-webkit-slider-thumb:hover {
       transform: scale(1.2);
       box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
     }
-    
+
     #debug-section {
       display: none;
       margin: 30px auto;
       max-width: 800px;
       padding: 20px;
     }
-    
+
     #debug-container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 20px;
     }
-    
+
     .debug-item {
       text-align: center;
     }
-    
+
     .debug-label {
       font-size: 14px;
       color: rgba(255,255,255,0.6);
       margin-bottom: 10px;
     }
-    
+
     .debug-canvas {
       width: 100%;
       border-radius: 10px;
       border: 2px solid rgba(255,255,255,0.1);
     }
-    
+
     #result-section {
       display: none;
       max-width: 800px;
       margin: 30px auto;
       padding: 20px;
     }
-    
+
     #result-container {
       background: rgba(255,255,255,0.05);
       backdrop-filter: blur(10px);
@@ -263,7 +263,7 @@
       border: 1px solid rgba(255,255,255,0.1);
       text-align: center;
     }
-    
+
     #crop-stage {
       position: relative;
       width: min(100%, 500px);
@@ -271,14 +271,14 @@
       line-height: 0;
       touch-action: none;
     }
-    
+
     #result-canvas {
       width: 100%;
       border-radius: 10px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.3);
       margin: 0 auto;
     }
-    
+
     #crop-overlay {
       position: absolute;
       inset: 0;
@@ -287,11 +287,11 @@
       cursor: move;
       border-radius: 10px;
     }
-    
+
     #crop-overlay.active {
       display: block;
     }
-    
+
     #crop-box {
       position: absolute;
       border: 2px solid #38ef7d;
@@ -300,7 +300,7 @@
       min-width: 45px;
       min-height: 45px;
     }
-    
+
     .crop-handle {
       position: absolute;
       width: 24px;
@@ -310,23 +310,23 @@
       border-radius: 50%;
       box-shadow: 0 2px 10px rgba(0,0,0,0.4);
     }
-    
+
     .crop-handle.nw { top: -13px; left: -13px; cursor: nwse-resize; }
     .crop-handle.ne { top: -13px; right: -13px; cursor: nesw-resize; }
     .crop-handle.sw { bottom: -13px; left: -13px; cursor: nesw-resize; }
     .crop-handle.se { bottom: -13px; right: -13px; cursor: nwse-resize; }
-    
+
     #crop-actions {
       display: none;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
       margin-top: 15px;
     }
-    
+
     #crop-actions.active {
       display: grid;
     }
-    
+
     .result-actions {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
@@ -346,7 +346,7 @@
       overflow-wrap: anywhere;
       text-align: center;
     }
-    
+
     #toast {
       position: fixed;
       bottom: 30px;
@@ -361,24 +361,24 @@
       transition: all 0.3s ease;
       z-index: 1000;
     }
-    
+
     #toast.show {
       transform: translateX(-50%) translateY(0);
       opacity: 1;
     }
-    
+
     #toast.success {
       background: rgba(0,255,0,0.2);
       border: 1px solid rgba(0,255,0,0.5);
       color: #00ff00;
     }
-    
+
     #toast.error {
       background: rgba(255,0,0,0.2);
       border: 1px solid rgba(255,0,0,0.5);
       color: #ff6b6b;
     }
-    
+
     .thumbnail {
       width: 80px;
       height: 100px;
@@ -388,12 +388,12 @@
       transition: all 0.2s ease;
       position: relative;
     }
-    
+
     .thumbnail:hover {
       transform: scale(1.05);
       border-color: #667eea;
     }
-    
+
     .thumbnail-number {
       position: absolute;
       top: 5px;
@@ -409,16 +409,16 @@
       font-size: 12px;
       font-weight: bold;
     }
-    
+
     #process-canvas {
       display: none;
     }
-    
+
     .icon {
       width: 20px;
       height: 20px;
     }
-    
+
     #scan-count {
       position: absolute;
       top: 20px;
@@ -437,7 +437,7 @@
     <h1>Document Scanner Pro</h1>
     <p class="subtitle">Capture documents with automatic edge detection</p>
   </header>
-  
+
   <section id="camera-section">
     <div id="camera-container">
       <video id="video" autoplay playsinline muted></video>
@@ -448,7 +448,7 @@
       </div>
       <div id="scan-count">Scans: <span id="count">0</span></div>
     </div>
-    
+
     <div id="controls">
       <button id="capture-btn" class="primary-btn" disabled>
         <span>📸</span>
@@ -458,21 +458,17 @@
         <span>🔄</span>
         <span>Auto Mode: ON</span>
       </button>
-      <button id="debug-btn" class="secondary-btn">
-        <span>🔧</span>
-        <span>Debug: OFF</span>
-      </button>
     </div>
-    
+
     <div id="settings">
       <div class="slider-group">
         <div class="slider-header">
-          <span class="slider-label">Edge Detection Sensitivity</span>
-          <span class="slider-value" id="threshold-val">30</span>
+          <span class="slider-label">Detection Confidence</span>
+          <span class="slider-value"><span id="confidence-val">50</span>%</span>
         </div>
-        <input type="range" id="threshold" min="10" max="100" value="30">
+        <input type="range" id="confidence" min="10" max="90" value="50">
       </div>
-      
+
       <div class="slider-group">
         <div class="slider-header">
           <span class="slider-label">Minimum Document Size</span>
@@ -482,20 +478,7 @@
       </div>
     </div>
   </section>
-  
-  <section id="debug-section">
-    <div id="debug-container">
-      <div class="debug-item">
-        <div class="debug-label">Grayscale</div>
-        <canvas id="debug-gray" class="debug-canvas"></canvas>
-      </div>
-      <div class="debug-item">
-        <div class="debug-label">Edge Detection</div>
-        <canvas id="debug-edge" class="debug-canvas"></canvas>
-      </div>
-    </div>
-  </section>
-  
+
   <section id="result-section">
     <div id="result-container">
       <h2>Captured Document</h2>
@@ -547,10 +530,11 @@
       </div>
     </div>
   </section>
-  
+
   <canvas id="process-canvas"></canvas>
   <div id="toast"></div>
-  
+
+  <script src="/scan-static/vendor/ort.min.js"></script>
   <script>
     // Elements
     const video = document.getElementById('video');
@@ -558,12 +542,12 @@
     const overlayCtx = overlay.getContext('2d');
     const processCanvas = document.getElementById('process-canvas');
     const processCtx = processCanvas.getContext('2d');
+    const detectionCanvas = document.createElement('canvas');
+    const detectionCtx = detectionCanvas.getContext('2d');
     const captureBtn = document.getElementById('capture-btn');
     const autoBtn = document.getElementById('auto-btn');
-    const debugBtn = document.getElementById('debug-btn');
     const statusText = document.getElementById('status-text');
     const statusBadge = document.getElementById('status-badge');
-    const debugSection = document.getElementById('debug-section');
     const resultSection = document.getElementById('result-section');
     const resultCanvas = document.getElementById('result-canvas');
     const resultCtx = resultCanvas.getContext('2d');
@@ -573,35 +557,60 @@
     const cropActions = document.getElementById('crop-actions');
     const resultActions = document.querySelector('.result-actions');
     const scanCount = document.getElementById('count');
-    
+
     // State
     let autoMode = true;
-    let debugMode = false;
     let isProcessing = false;
     let detectedCorners = null;
-    let edgeThreshold = 30;
+    let confidenceThreshold = 0.5;
     let minSizePct = 20;
     let totalScans = 0;
     let scannedPages = [];
+    let pageCropped = [];
     let currentPageIndex = 0;
     let cropActive = false;
     let cropDrag = null;
-    
-    // Edge detection kernels
-    const sobelX = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
-    const sobelY = [[-1, -2, -1], [0, 0, 0], [1, 2, 1]];
-    
+    let smoothedCorners = null;
+    let lastGoodCorners = null;
+    let missedFrames = 0;
+    let stableFrames = 0;
+
+    const PROCESS_INTERVAL_MS = 120;
+    const HOLD_FRAMES = 8;
+    const SMOOTHING_ALPHA = 0.28;
+
+    // Document corner detection: DocAligner point-regression model (lcnet050)
+    // via onnxruntime-web. Input: 1x3x256x256 float32 BGR/255 (tensor name
+    // "img"); outputs: "points" (1x8, corner coords normalized to 0..1 in
+    // TL,TR,BR,BL order) and "has_obj" (1x1 confidence).
+    const MODEL_URL = '/scan-static/models/docaligner_lcnet050_point.onnx';
+    const MODEL_SIZE = 256;
+    let ortSession = null;
+    const inputTensorData = new Float32Array(3 * MODEL_SIZE * MODEL_SIZE);
+
+    async function loadModel() {
+      try {
+        ort.env.wasm.wasmPaths = '/scan-static/vendor/';
+        ortSession = await ort.InferenceSession.create(MODEL_URL, {
+          executionProviders: ['wasm']
+        });
+      } catch (err) {
+        console.error('Failed to load detection model:', err);
+        showToast('Detection model failed to load — capture without auto-crop', 'error');
+      }
+    }
+
     // Initialize camera
     async function initCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
+          video: {
             facingMode: 'environment',
             width: { ideal: 1920 },
             height: { ideal: 1080 }
           }
         });
-        
+
         video.srcObject = stream;
         video.onloadedmetadata = () => {
           video.play();
@@ -609,7 +618,7 @@
             setupCanvases();
             captureBtn.disabled = false;
             captureBtn.innerHTML = '<span>📸</span><span>Capture</span>';
-            statusText.textContent = 'Ready';
+            statusText.textContent = ortSession ? 'Ready' : 'Loading model...';
             if (autoMode) startProcessing();
           }, 500);
         };
@@ -618,7 +627,7 @@
         statusText.textContent = 'Camera error';
       }
     }
-    
+
     function setupCanvases() {
       const w = video.videoWidth;
       const h = video.videoHeight;
@@ -626,39 +635,69 @@
       overlay.height = h;
       processCanvas.width = w;
       processCanvas.height = h;
+      detectionCanvas.width = MODEL_SIZE;
+      detectionCanvas.height = MODEL_SIZE;
     }
-    
+
     // Processing loop
     function startProcessing() {
-      if (!autoMode || isProcessing) return;
-      detectEdges();
-      requestAnimationFrame(startProcessing);
-    }
-    
-    // Edge detection
-    function detectEdges() {
-      isProcessing = true;
-      
-      processCtx.drawImage(video, 0, 0);
-      const imageData = processCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
-      
-      const gray = toGrayscale(imageData);
-      const blurred = gaussianBlur(gray);
-      const edges = sobelEdgeDetection(blurred);
-      
-      if (debugMode) {
-        showDebugCanvas('debug-gray', gray);
-        showDebugCanvas('debug-edge', edges);
+      if (!autoMode) return;
+
+      if (!isProcessing && ortSession) {
+        isProcessing = true;
+        detectDocument()
+          .catch(err => console.error('Document detection failed:', err))
+          .finally(() => {
+            isProcessing = false;
+            if (autoMode) setTimeout(startProcessing, PROCESS_INTERVAL_MS);
+          });
+      } else {
+        setTimeout(startProcessing, PROCESS_INTERVAL_MS);
       }
-      
-      const lines = findLines(edges);
-      const corners = findDocumentCorners(lines, processCanvas.width, processCanvas.height);
-      
+    }
+
+    // Model-based document detection
+    async function detectDocument() {
+      // Squash the frame to 256x256 (model is trained on stretched input)
+      detectionCtx.drawImage(video, 0, 0, MODEL_SIZE, MODEL_SIZE);
+      const imageData = detectionCtx.getImageData(0, 0, MODEL_SIZE, MODEL_SIZE);
+      const pixels = imageData.data;
+      const plane = MODEL_SIZE * MODEL_SIZE;
+
+      // CHW, BGR channel order, scaled to 0..1 (matches DocAligner preprocessing)
+      for (let i = 0; i < plane; i++) {
+        const p = i * 4;
+        inputTensorData[i] = pixels[p + 2] / 255;
+        inputTensorData[plane + i] = pixels[p + 1] / 255;
+        inputTensorData[2 * plane + i] = pixels[p] / 255;
+      }
+
+      const input = new ort.Tensor('float32', inputTensorData, [1, 3, MODEL_SIZE, MODEL_SIZE]);
+      const output = await ortSession.run({ img: input });
+      const confidence = output.has_obj.data[0];
+      const points = output.points.data;
+
+      let corners = null;
+      if (confidence > confidenceThreshold) {
+        corners = [];
+        for (let i = 0; i < 4; i++) {
+          corners.push({
+            x: points[i * 2] * overlay.width,
+            y: points[i * 2 + 1] * overlay.height
+          });
+        }
+
+        const minArea = overlay.width * overlay.height * minSizePct / 100;
+        if (polygonArea(corners) < minArea) corners = null;
+      }
+
+      const stableCorners = stabilizeCorners(corners);
+
       overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-      
-      if (corners && corners.length === 4) {
-        detectedCorners = corners;
-        drawPolygon(corners, '#00ff00', 3);
+
+      if (stableCorners && stableCorners.length === 4) {
+        detectedCorners = stableCorners;
+        drawPolygon(stableCorners, '#00ff00', 3);
         statusText.textContent = 'Document detected';
         statusBadge.classList.add('detected');
       } else {
@@ -666,173 +705,71 @@
         statusText.textContent = 'Searching...';
         statusBadge.classList.remove('detected');
       }
-      
-      isProcessing = false;
     }
-    
-    // Image processing functions
-    function toGrayscale(imageData) {
-      const gray = new ImageData(imageData.width, imageData.height);
-      const data = imageData.data;
-      const grayData = gray.data;
-      
-      for (let i = 0; i < data.length; i += 4) {
-        const avg = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
-        grayData[i] = grayData[i + 1] = grayData[i + 2] = avg;
-        grayData[i + 3] = 255;
-      }
-      
-      return gray;
-    }
-    
-    function gaussianBlur(imageData) {
-      const kernel = [[1, 2, 1], [2, 4, 2], [1, 2, 1]];
-      return applyKernel(imageData, kernel, 16);
-    }
-    
-    function sobelEdgeDetection(imageData) {
-      const width = imageData.width;
-      const height = imageData.height;
-      const edges = new ImageData(width, height);
-      const data = imageData.data;
-      const edgeData = edges.data;
-      
-      for (let y = 1; y < height - 1; y++) {
-        for (let x = 1; x < width - 1; x++) {
-          let gx = 0, gy = 0;
-          
-          for (let ky = -1; ky <= 1; ky++) {
-            for (let kx = -1; kx <= 1; kx++) {
-              const idx = ((y + ky) * width + (x + kx)) * 4;
-              const pixel = data[idx];
-              gx += pixel * sobelX[ky + 1][kx + 1];
-              gy += pixel * sobelY[ky + 1][kx + 1];
-            }
-          }
-          
-          const magnitude = Math.sqrt(gx * gx + gy * gy);
-          const idx = (y * width + x) * 4;
-          const value = magnitude > edgeThreshold ? 255 : 0;
-          edgeData[idx] = edgeData[idx + 1] = edgeData[idx + 2] = value;
-          edgeData[idx + 3] = 255;
+
+    function stabilizeCorners(corners) {
+      if (corners && corners.length === 4) {
+        const ordered = orderCorners(corners);
+        missedFrames = 0;
+        stableFrames++;
+
+        if (!smoothedCorners) {
+          smoothedCorners = ordered;
+        } else {
+          smoothedCorners = smoothedCorners.map((point, index) => ({
+            x: point.x + (ordered[index].x - point.x) * SMOOTHING_ALPHA,
+            y: point.y + (ordered[index].y - point.y) * SMOOTHING_ALPHA
+          }));
         }
+
+        lastGoodCorners = smoothedCorners.map(point => ({ ...point }));
+        return stableFrames >= 2 ? lastGoodCorners : null;
       }
-      
-      return edges;
+
+      missedFrames++;
+      stableFrames = 0;
+
+      if (lastGoodCorners && missedFrames <= HOLD_FRAMES) {
+        return lastGoodCorners;
+      }
+
+      smoothedCorners = null;
+      lastGoodCorners = null;
+      return null;
     }
-    
-    function applyKernel(imageData, kernel, divisor) {
-      const width = imageData.width;
-      const height = imageData.height;
-      const output = new ImageData(width, height);
-      const data = imageData.data;
-      const outData = output.data;
-      
-      for (let y = 1; y < height - 1; y++) {
-        for (let x = 1; x < width - 1; x++) {
-          let r = 0, g = 0, b = 0;
-          
-          for (let ky = -1; ky <= 1; ky++) {
-            for (let kx = -1; kx <= 1; kx++) {
-              const idx = ((y + ky) * width + (x + kx)) * 4;
-              const weight = kernel[ky + 1][kx + 1];
-              r += data[idx] * weight;
-              g += data[idx + 1] * weight;
-              b += data[idx + 2] * weight;
-            }
-          }
-          
-          const idx = (y * width + x) * 4;
-          outData[idx] = r / divisor;
-          outData[idx + 1] = g / divisor;
-          outData[idx + 2] = b / divisor;
-          outData[idx + 3] = 255;
-        }
-      }
-      
-      return output;
+
+    function orderCorners(points) {
+      const ordered = new Array(4);
+      const sums = points.map(point => point.x + point.y);
+      const diffs = points.map(point => point.x - point.y);
+
+      ordered[0] = points[sums.indexOf(Math.min(...sums))];
+      ordered[2] = points[sums.indexOf(Math.max(...sums))];
+      ordered[1] = points[diffs.indexOf(Math.max(...diffs))];
+      ordered[3] = points[diffs.indexOf(Math.min(...diffs))];
+
+      return ordered.map(point => ({ x: point.x, y: point.y }));
     }
-    
-    function findLines(edges) {
-      const width = edges.width;
-      const height = edges.height;
-      const data = edges.data;
-      const lines = [];
-      const minLength = Math.min(width, height) * 0.1;
-      
-      // Find horizontal lines
-      for (let y = 10; y < height - 10; y += 5) {
-        let start = -1;
-        for (let x = 0; x < width; x++) {
-          const idx = (y * width + x) * 4;
-          if (data[idx] > 128) {
-            if (start === -1) start = x;
-          } else {
-            if (start !== -1 && x - start > minLength) {
-              lines.push({ x1: start, y1: y, x2: x, y2: y, horizontal: true });
-            }
-            start = -1;
-          }
-        }
+
+    function polygonArea(points) {
+      let area = 0;
+      for (let i = 0; i < points.length; i++) {
+        const next = points[(i + 1) % points.length];
+        area += points[i].x * next.y - next.x * points[i].y;
       }
-      
-      // Find vertical lines
-      for (let x = 10; x < width - 10; x += 5) {
-        let start = -1;
-        for (let y = 0; y < height; y++) {
-          const idx = (y * width + x) * 4;
-          if (data[idx] > 128) {
-            if (start === -1) start = y;
-          } else {
-            if (start !== -1 && y - start > minLength) {
-              lines.push({ x1: x, y1: start, x2: x, y2: y, vertical: true });
-            }
-            start = -1;
-          }
-        }
-      }
-      
-      return lines;
+      return Math.abs(area / 2);
     }
-    
-    function findDocumentCorners(lines, width, height) {
-      if (lines.length < 4) return null;
-      
-      const margin = 50;
-      const minArea = width * height * minSizePct / 100;
-      
-      let leftmost = width, rightmost = 0;
-      let topmost = height, bottommost = 0;
-      
-      lines.forEach(line => {
-        if (line.vertical && line.x1 > margin && line.x1 < width - margin) {
-          leftmost = Math.min(leftmost, line.x1);
-          rightmost = Math.max(rightmost, line.x1);
-        } else if (line.horizontal && line.y1 > margin && line.y1 < height - margin) {
-          topmost = Math.min(topmost, line.y1);
-          bottommost = Math.max(bottommost, line.y1);
-        }
-      });
-      
-      const area = (rightmost - leftmost) * (bottommost - topmost);
-      if (area < minArea || leftmost >= rightmost || topmost >= bottommost) {
-        return null;
-      }
-      
-      return [
-        { x: leftmost, y: topmost },
-        { x: rightmost, y: topmost },
-        { x: rightmost, y: bottommost },
-        { x: leftmost, y: bottommost }
-      ];
+
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
     }
-    
+
     function drawPolygon(corners, color, lineWidth) {
       overlayCtx.strokeStyle = color;
       overlayCtx.lineWidth = lineWidth;
       overlayCtx.shadowColor = color;
       overlayCtx.shadowBlur = 10;
-      
+
       overlayCtx.beginPath();
       overlayCtx.moveTo(corners[0].x, corners[0].y);
       for (let i = 1; i < corners.length; i++) {
@@ -840,7 +777,7 @@
       }
       overlayCtx.closePath();
       overlayCtx.stroke();
-      
+
       overlayCtx.fillStyle = color;
       corners.forEach(corner => {
         overlayCtx.beginPath();
@@ -848,20 +785,12 @@
         overlayCtx.fill();
       });
     }
-    
-    function showDebugCanvas(canvasId, imageData) {
-      const canvas = document.getElementById(canvasId);
-      canvas.width = imageData.width;
-      canvas.height = imageData.height;
-      const ctx = canvas.getContext('2d');
-      ctx.putImageData(imageData, 0, 0);
-    }
-    
+
     // Capture and save functions
     function captureDocument() {
       if (cropActive) cancelCrop();
       let capturedData;
-      
+
       if (!detectedCorners) {
         resultCanvas.width = processCanvas.width;
         resultCanvas.height = processCanvas.height;
@@ -872,46 +801,140 @@
         resultCanvas.height = extracted.height;
         resultCtx.putImageData(extracted, 0, 0);
       }
-      
+
       // Store the captured image data
       capturedData = resultCanvas.toDataURL('image/png');
-      
+
       // If retaking current page, replace it
       if (currentPageIndex < scannedPages.length) {
         scannedPages[currentPageIndex] = capturedData;
+        pageCropped[currentPageIndex] = !!detectedCorners;
       } else {
         scannedPages.push(capturedData);
+        pageCropped.push(!!detectedCorners);
         currentPageIndex = scannedPages.length - 1;
       }
-      
+
       updatePageInfo();
       updateThumbnails();
-      
+
       resultSection.style.display = 'block';
       resultSection.scrollIntoView({ behavior: 'smooth' });
     }
-    
+
     function extractDocument(corners) {
-      const minX = Math.min(...corners.map(c => c.x));
-      const maxX = Math.max(...corners.map(c => c.x));
-      const minY = Math.min(...corners.map(c => c.y));
-      const maxY = Math.max(...corners.map(c => c.y));
-      
-      const width = maxX - minX;
-      const height = maxY - minY;
-      
-      processCtx.drawImage(video, 0, 0);
-      return processCtx.getImageData(minX, minY, width, height);
+      const [tl, tr, br, bl] = orderCorners(corners);
+      const widthA = distance(br, bl);
+      const widthB = distance(tr, tl);
+      const heightA = distance(tr, br);
+      const heightB = distance(tl, bl);
+      const outputWidth = Math.max(1, Math.round(Math.max(widthA, widthB)));
+      const outputHeight = Math.max(1, Math.round(Math.max(heightA, heightB)));
+
+      processCtx.drawImage(video, 0, 0, processCanvas.width, processCanvas.height);
+      const source = processCtx.getImageData(0, 0, processCanvas.width, processCanvas.height);
+      const output = new ImageData(outputWidth, outputHeight);
+      const matrix = getPerspectiveTransform(
+        [
+          { x: 0, y: 0 },
+          { x: outputWidth - 1, y: 0 },
+          { x: outputWidth - 1, y: outputHeight - 1 },
+          { x: 0, y: outputHeight - 1 }
+        ],
+        [tl, tr, br, bl]
+      );
+
+      for (let y = 0; y < outputHeight; y++) {
+        for (let x = 0; x < outputWidth; x++) {
+          const denom = matrix[6] * x + matrix[7] * y + 1;
+          const sourceX = (matrix[0] * x + matrix[1] * y + matrix[2]) / denom;
+          const sourceY = (matrix[3] * x + matrix[4] * y + matrix[5]) / denom;
+          const outIdx = (y * outputWidth + x) * 4;
+          sampleBilinear(source, sourceX, sourceY, output.data, outIdx);
+        }
+      }
+
+      return output;
     }
-    
+
+    function getPerspectiveTransform(from, to) {
+      const matrix = [];
+
+      for (let i = 0; i < 4; i++) {
+        const u = from[i].x;
+        const v = from[i].y;
+        const x = to[i].x;
+        const y = to[i].y;
+
+        matrix.push([u, v, 1, 0, 0, 0, -x * u, -x * v, x]);
+        matrix.push([0, 0, 0, u, v, 1, -y * u, -y * v, y]);
+      }
+
+      return solveLinearSystem(matrix);
+    }
+
+    function solveLinearSystem(matrix) {
+      const size = 8;
+
+      for (let col = 0; col < size; col++) {
+        let pivot = col;
+        for (let row = col + 1; row < size; row++) {
+          if (Math.abs(matrix[row][col]) > Math.abs(matrix[pivot][col])) {
+            pivot = row;
+          }
+        }
+
+        [matrix[col], matrix[pivot]] = [matrix[pivot], matrix[col]];
+        const divisor = matrix[col][col] || 1e-12;
+
+        for (let j = col; j <= size; j++) {
+          matrix[col][j] /= divisor;
+        }
+
+        for (let row = 0; row < size; row++) {
+          if (row === col) continue;
+          const factor = matrix[row][col];
+          for (let j = col; j <= size; j++) {
+            matrix[row][j] -= factor * matrix[col][j];
+          }
+        }
+      }
+
+      return matrix.map(row => row[size]);
+    }
+
+    function sampleBilinear(source, x, y, output, outIdx) {
+      const width = source.width;
+      const height = source.height;
+      const data = source.data;
+      const sx = Math.max(0, Math.min(width - 1, x));
+      const sy = Math.max(0, Math.min(height - 1, y));
+      const x0 = Math.floor(sx);
+      const y0 = Math.floor(sy);
+      const x1 = Math.min(width - 1, x0 + 1);
+      const y1 = Math.min(height - 1, y0 + 1);
+      const wx = sx - x0;
+      const wy = sy - y0;
+      const i00 = (y0 * width + x0) * 4;
+      const i10 = (y0 * width + x1) * 4;
+      const i01 = (y1 * width + x0) * 4;
+      const i11 = (y1 * width + x1) * 4;
+
+      for (let channel = 0; channel < 4; channel++) {
+        const top = data[i00 + channel] * (1 - wx) + data[i10 + channel] * wx;
+        const bottom = data[i01 + channel] * (1 - wx) + data[i11 + channel] * wx;
+        output[outIdx + channel] = top * (1 - wy) + bottom * wy;
+      }
+    }
+
     function startCrop() {
       if (!resultCanvas.width || !resultCanvas.height) return;
-      
+
       cropActive = true;
       cropOverlay.classList.add('active');
       cropActions.classList.add('active');
       resultActions.style.display = 'none';
-      
+
       const bounds = getCropStageBounds();
       const insetX = Math.max(12, bounds.width * 0.06);
       const insetY = Math.max(12, bounds.height * 0.06);
@@ -923,7 +946,7 @@
       });
       showToast('Drag corners to crop this page', '');
     }
-    
+
     function cancelCrop() {
       cropActive = false;
       cropDrag = null;
@@ -931,10 +954,10 @@
       cropActions.classList.remove('active');
       resultActions.style.display = 'grid';
     }
-    
+
     function applyCrop() {
       if (!cropActive) return;
-      
+
       const crop = getCropBox();
       const stage = getCropStageBounds();
       const scaleX = resultCanvas.width / stage.width;
@@ -943,32 +966,33 @@
       const sy = Math.round(crop.top * scaleY);
       const sw = Math.round(crop.width * scaleX);
       const sh = Math.round(crop.height * scaleY);
-      
+
       if (sw < 20 || sh < 20) {
         showToast('Crop area is too small', 'error');
         return;
       }
-      
+
       const croppedCanvas = document.createElement('canvas');
       croppedCanvas.width = sw;
       croppedCanvas.height = sh;
       croppedCanvas.getContext('2d').drawImage(resultCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
-      
+
       resultCanvas.width = sw;
       resultCanvas.height = sh;
       resultCtx.drawImage(croppedCanvas, 0, 0);
-      
+
       scannedPages[currentPageIndex] = resultCanvas.toDataURL('image/png');
+      pageCropped[currentPageIndex] = true;
       cancelCrop();
       updateThumbnails();
       showToast('Crop applied', 'success');
     }
-    
+
     function getCropStageBounds() {
       const rect = cropStage.getBoundingClientRect();
       return { width: rect.width, height: rect.height };
     }
-    
+
     function getCropBox() {
       return {
         left: parseFloat(cropBox.style.left) || 0,
@@ -977,7 +1001,7 @@
         height: parseFloat(cropBox.style.height) || 0
       };
     }
-    
+
     function setCropBox(rect) {
       const stage = getCropStageBounds();
       const minSize = 45;
@@ -985,30 +1009,30 @@
       const top = Math.max(0, Math.min(rect.top, stage.height - minSize));
       const width = Math.max(minSize, Math.min(rect.width, stage.width - left));
       const height = Math.max(minSize, Math.min(rect.height, stage.height - top));
-      
+
       cropBox.style.left = `${left}px`;
       cropBox.style.top = `${top}px`;
       cropBox.style.width = `${width}px`;
       cropBox.style.height = `${height}px`;
     }
-    
+
     function updateCropDrag(clientX, clientY) {
       if (!cropDrag) return;
-      
+
       const dx = clientX - cropDrag.startX;
       const dy = clientY - cropDrag.startY;
       const start = cropDrag.startRect;
       const stage = getCropStageBounds();
       const minSize = 45;
       let next = { ...start };
-      
+
       if (cropDrag.mode === 'move') {
         next.left = Math.max(0, Math.min(start.left + dx, stage.width - start.width));
         next.top = Math.max(0, Math.min(start.top + dy, stage.height - start.height));
       } else {
         const right = start.left + start.width;
         const bottom = start.top + start.height;
-        
+
         if (cropDrag.mode.includes('n')) {
           next.top = Math.max(0, Math.min(start.top + dy, bottom - minSize));
           next.height = bottom - next.top;
@@ -1024,10 +1048,10 @@
           next.width = Math.max(minSize, Math.min(start.width + dx, stage.width - start.left));
         }
       }
-      
+
       setCropBox(next);
     }
-    
+
     function continueScan() {
       if (cropActive) cancelCrop();
       currentPageIndex = scannedPages.length;
@@ -1035,23 +1059,23 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
       showToast(`Ready for page ${currentPageIndex + 1}`, 'success');
     }
-    
+
     async function saveToServer() {
       if (cropActive) cancelCrop();
       if (scannedPages.length === 0) {
         showToast('No pages to save', 'error');
         return;
       }
-      
+
       try {
         showToast('Creating PDF...', '');
-        
+
         const response = await fetch('/save-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pages: scannedPages })
+          body: JSON.stringify({ pages: scannedPages, cropped: pageCropped })
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           totalScans++;
@@ -1080,7 +1104,7 @@
         const response = await fetch('/save-pages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pages: scannedPages })
+          body: JSON.stringify({ pages: scannedPages, cropped: pageCropped })
         });
 
         if (response.ok) {
@@ -1102,55 +1126,56 @@
     function resetAfterSave() {
       if (cropActive) cancelCrop();
       scannedPages = [];
+      pageCropped = [];
       currentPageIndex = 0;
       setTimeout(() => {
         resultSection.style.display = 'none';
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 2000);
     }
-    
+
     function retake() {
       if (cropActive) cancelCrop();
       // Just retake the current page
       resultSection.style.display = 'none';
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    
+
     function updatePageInfo() {
       document.getElementById('current-page').textContent = currentPageIndex + 1;
       document.getElementById('total-pages').textContent = scannedPages.length;
-      
+
       if (scannedPages.length > 1) {
         document.getElementById('page-thumbnails').style.display = 'block';
       }
     }
-    
+
     function updateThumbnails() {
       const container = document.getElementById('thumbnails-container');
       container.innerHTML = '';
-      
+
       scannedPages.forEach((pageData, index) => {
         const thumb = document.createElement('canvas');
         thumb.className = 'thumbnail';
         thumb.width = 80;
         thumb.height = 100;
-        
+
         const img = new Image();
         img.onload = () => {
           const ctx = thumb.getContext('2d');
           ctx.drawImage(img, 0, 0, 80, 100);
         };
         img.src = pageData;
-        
+
         const number = document.createElement('div');
         number.className = 'thumbnail-number';
         number.textContent = index + 1;
-        
+
         const wrapper = document.createElement('div');
         wrapper.style.position = 'relative';
         wrapper.appendChild(thumb);
         wrapper.appendChild(number);
-        
+
         wrapper.onclick = () => {
           if (cropActive) cancelCrop();
           currentPageIndex = index;
@@ -1163,25 +1188,25 @@
           };
           img.src = pageData;
         };
-        
+
         container.appendChild(wrapper);
       });
     }
-    
+
     function showToast(message, type = '') {
       const toast = document.getElementById('toast');
       toast.textContent = message;
       toast.className = type;
       toast.classList.add('show');
-      
+
       setTimeout(() => {
         toast.classList.remove('show');
       }, 3000);
     }
-    
+
     // Event listeners
     captureBtn.addEventListener('click', captureDocument);
-    
+
     cropOverlay.addEventListener('pointerdown', (e) => {
       if (!cropActive) return;
       e.preventDefault();
@@ -1194,48 +1219,47 @@
       };
       cropOverlay.setPointerCapture(e.pointerId);
     });
-    
+
     cropOverlay.addEventListener('pointermove', (e) => {
       if (!cropDrag) return;
       e.preventDefault();
       updateCropDrag(e.clientX, e.clientY);
     });
-    
+
     cropOverlay.addEventListener('pointerup', (e) => {
       if (!cropDrag) return;
       cropDrag = null;
       cropOverlay.releasePointerCapture(e.pointerId);
     });
-    
+
     cropOverlay.addEventListener('pointercancel', () => {
       cropDrag = null;
     });
-    
+
     autoBtn.addEventListener('click', () => {
       autoMode = !autoMode;
       autoBtn.classList.toggle('active');
       autoBtn.innerHTML = `<span>🔄</span><span>Auto Mode: ${autoMode ? 'ON' : 'OFF'}</span>`;
       if (autoMode) startProcessing();
     });
-    
-    debugBtn.addEventListener('click', () => {
-      debugMode = !debugMode;
-      debugBtn.classList.toggle('active');
-      debugBtn.innerHTML = `<span>🔧</span><span>Debug: ${debugMode ? 'ON' : 'OFF'}</span>`;
-      debugSection.style.display = debugMode ? 'block' : 'none';
+
+    document.getElementById('confidence').addEventListener('input', (e) => {
+      const pct = parseInt(e.target.value);
+      confidenceThreshold = pct / 100;
+      document.getElementById('confidence-val').textContent = pct;
     });
-    
-    document.getElementById('threshold').addEventListener('input', (e) => {
-      edgeThreshold = parseInt(e.target.value);
-      document.getElementById('threshold-val').textContent = edgeThreshold;
-    });
-    
+
     document.getElementById('minsize').addEventListener('input', (e) => {
       minSizePct = parseInt(e.target.value);
       document.getElementById('minsize-val').textContent = minSizePct;
     });
-    
+
     // Initialize
+    loadModel().then(() => {
+      if (statusText.textContent === 'Loading model...') {
+        statusText.textContent = 'Ready';
+      }
+    });
     initCamera();
   </script>
 </body>

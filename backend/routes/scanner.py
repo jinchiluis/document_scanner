@@ -10,7 +10,7 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
 from config import get_image_processing_config
-from image_processor import process_document_image, process_multiple_pages
+from image_processor import process_document_image
 from storage import save_scan_bytes, scan_folder
 
 
@@ -24,6 +24,19 @@ PAGE_IMAGE_JPEG_QUALITY = 92
 
 def _decode_data_url(data_url: str) -> bytes:
     return base64.b64decode(data_url.split(",", 1)[1])
+
+
+def _process_pages(pages: list[str], cropped_flags: list[bool]) -> list[str]:
+    """Process scanned pages, skipping auto-crop for pages the phone already
+    perspective-cropped (re-cropping a clean scan risks cutting into content)."""
+    config = get_image_processing_config()
+    processed = []
+    for index, page in enumerate(pages):
+        page_config = dict(config)
+        if index < len(cropped_flags) and cropped_flags[index]:
+            page_config["auto_crop"] = False
+        processed.append(process_document_image(page, **page_config))
+    return processed
 
 
 def _prepare_pdf_image(page_data: str):
@@ -83,7 +96,7 @@ async def save_pdf(req: Request):
                 status_code=400,
             )
 
-        processed_pages = process_multiple_pages(pages, **get_image_processing_config())
+        processed_pages = _process_pages(pages, data.get("cropped", []))
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         pdf_filename = scan_folder(create=True) / f"doc_{timestamp}.pdf"
 
@@ -149,7 +162,7 @@ async def save_pages(req: Request):
                 status_code=400,
             )
 
-        processed_pages = process_multiple_pages(pages, **get_image_processing_config())
+        processed_pages = _process_pages(pages, data.get("cropped", []))
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         saved_files = []
 
