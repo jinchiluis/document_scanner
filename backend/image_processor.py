@@ -148,19 +148,21 @@ def enhance_document(image: np.ndarray, doc_type: str = 'mixed') -> np.ndarray:
         lab = cv2.cvtColor(enhanced, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
         
-        # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization)
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        # Keep the scan natural-looking; aggressive CLAHE/sharpening creates
+        # halos and posterized receipts.
+        clip_limit = 1.4 if doc_type == 'photo' else 1.8
+        clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
         l = clahe.apply(l)
         
         # Merge channels
         enhanced = cv2.merge([l, a, b])
         enhanced = cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
         
-        # Slight sharpening
-        kernel = np.array([[-1, -1, -1],
-                          [-1,  9, -1],
-                          [-1, -1, -1]])
-        enhanced = cv2.filter2D(enhanced, -1, kernel)
+        if doc_type != 'photo':
+            # Mild unsharp mask keeps text crisp without the synthetic edge look
+            # of a hard convolution kernel.
+            blurred = cv2.GaussianBlur(enhanced, (0, 0), 1.0)
+            enhanced = cv2.addWeighted(enhanced, 1.15, blurred, -0.15, 0)
         
         # Ensure values are in valid range
         enhanced = np.clip(enhanced, 0, 255).astype(np.uint8)

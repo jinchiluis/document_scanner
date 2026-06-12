@@ -16,10 +16,10 @@ from storage import save_scan_bytes, scan_folder
 
 router = APIRouter()
 
-PDF_IMAGE_MAX_DIMENSION = 1600
-PDF_IMAGE_JPEG_QUALITY = 72
-PAGE_IMAGE_MAX_DIMENSION = 1800
-PAGE_IMAGE_JPEG_QUALITY = 78
+PDF_IMAGE_MAX_DIMENSION = 1800
+PDF_IMAGE_JPEG_QUALITY = 85
+PAGE_IMAGE_MAX_DIMENSION = 2400
+PAGE_IMAGE_JPEG_QUALITY = 92
 
 
 def _decode_data_url(data_url: str) -> bytes:

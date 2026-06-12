@@ -264,12 +264,67 @@
       text-align: center;
     }
     
+    #crop-stage {
+      position: relative;
+      width: min(100%, 500px);
+      margin: 20px auto;
+      line-height: 0;
+      touch-action: none;
+    }
+    
     #result-canvas {
       width: 100%;
-      max-width: 500px;
       border-radius: 10px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-      margin: 20px auto;
+      margin: 0 auto;
+    }
+    
+    #crop-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      z-index: 30;
+      cursor: move;
+      border-radius: 10px;
+    }
+    
+    #crop-overlay.active {
+      display: block;
+    }
+    
+    #crop-box {
+      position: absolute;
+      border: 2px solid #38ef7d;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.48);
+      border-radius: 4px;
+      min-width: 45px;
+      min-height: 45px;
+    }
+    
+    .crop-handle {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: #38ef7d;
+      border: 3px solid #fff;
+      border-radius: 50%;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    }
+    
+    .crop-handle.nw { top: -13px; left: -13px; cursor: nwse-resize; }
+    .crop-handle.ne { top: -13px; right: -13px; cursor: nesw-resize; }
+    .crop-handle.sw { bottom: -13px; left: -13px; cursor: nesw-resize; }
+    .crop-handle.se { bottom: -13px; right: -13px; cursor: nwse-resize; }
+    
+    #crop-actions {
+      display: none;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+    
+    #crop-actions.active {
+      display: grid;
     }
     
     .result-actions {
@@ -445,8 +500,30 @@
     <div id="result-container">
       <h2>Captured Document</h2>
       <p id="page-info" style="color: rgba(255,255,255,0.6); margin-bottom: 20px;">Page <span id="current-page">1</span> of <span id="total-pages">1</span></p>
-      <canvas id="result-canvas"></canvas>
+      <div id="crop-stage">
+        <canvas id="result-canvas"></canvas>
+        <div id="crop-overlay">
+          <div id="crop-box">
+            <div class="crop-handle nw" data-handle="nw"></div>
+            <div class="crop-handle ne" data-handle="ne"></div>
+            <div class="crop-handle sw" data-handle="sw"></div>
+            <div class="crop-handle se" data-handle="se"></div>
+          </div>
+        </div>
+      </div>
+      <div id="crop-actions">
+        <button onclick="applyCrop()" class="primary-btn" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+          <span>Apply Crop</span>
+        </button>
+        <button onclick="cancelCrop()" class="secondary-btn">
+          <span>Cancel</span>
+        </button>
+      </div>
       <div class="result-actions">
+        <button onclick="startCrop()" class="secondary-btn">
+          <span>Crop</span>
+          <span>Adjust Crop</span>
+        </button>
         <button onclick="continueScan()" class="primary-btn" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
           <span>➕</span>
           <span>Continue Scanning</span>
@@ -490,6 +567,11 @@
     const resultSection = document.getElementById('result-section');
     const resultCanvas = document.getElementById('result-canvas');
     const resultCtx = resultCanvas.getContext('2d');
+    const cropStage = document.getElementById('crop-stage');
+    const cropOverlay = document.getElementById('crop-overlay');
+    const cropBox = document.getElementById('crop-box');
+    const cropActions = document.getElementById('crop-actions');
+    const resultActions = document.querySelector('.result-actions');
     const scanCount = document.getElementById('count');
     
     // State
@@ -502,6 +584,8 @@
     let totalScans = 0;
     let scannedPages = [];
     let currentPageIndex = 0;
+    let cropActive = false;
+    let cropDrag = null;
     
     // Edge detection kernels
     const sobelX = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]];
@@ -775,6 +859,7 @@
     
     // Capture and save functions
     function captureDocument() {
+      if (cropActive) cancelCrop();
       let capturedData;
       
       if (!detectedCorners) {
@@ -789,7 +874,7 @@
       }
       
       // Store the captured image data
-      capturedData = resultCanvas.toDataURL('image/jpeg', 0.95);
+      capturedData = resultCanvas.toDataURL('image/png');
       
       // If retaking current page, replace it
       if (currentPageIndex < scannedPages.length) {
@@ -819,7 +904,132 @@
       return processCtx.getImageData(minX, minY, width, height);
     }
     
+    function startCrop() {
+      if (!resultCanvas.width || !resultCanvas.height) return;
+      
+      cropActive = true;
+      cropOverlay.classList.add('active');
+      cropActions.classList.add('active');
+      resultActions.style.display = 'none';
+      
+      const bounds = getCropStageBounds();
+      const insetX = Math.max(12, bounds.width * 0.06);
+      const insetY = Math.max(12, bounds.height * 0.06);
+      setCropBox({
+        left: insetX,
+        top: insetY,
+        width: bounds.width - insetX * 2,
+        height: bounds.height - insetY * 2
+      });
+      showToast('Drag corners to crop this page', '');
+    }
+    
+    function cancelCrop() {
+      cropActive = false;
+      cropDrag = null;
+      cropOverlay.classList.remove('active');
+      cropActions.classList.remove('active');
+      resultActions.style.display = 'grid';
+    }
+    
+    function applyCrop() {
+      if (!cropActive) return;
+      
+      const crop = getCropBox();
+      const stage = getCropStageBounds();
+      const scaleX = resultCanvas.width / stage.width;
+      const scaleY = resultCanvas.height / stage.height;
+      const sx = Math.round(crop.left * scaleX);
+      const sy = Math.round(crop.top * scaleY);
+      const sw = Math.round(crop.width * scaleX);
+      const sh = Math.round(crop.height * scaleY);
+      
+      if (sw < 20 || sh < 20) {
+        showToast('Crop area is too small', 'error');
+        return;
+      }
+      
+      const croppedCanvas = document.createElement('canvas');
+      croppedCanvas.width = sw;
+      croppedCanvas.height = sh;
+      croppedCanvas.getContext('2d').drawImage(resultCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+      
+      resultCanvas.width = sw;
+      resultCanvas.height = sh;
+      resultCtx.drawImage(croppedCanvas, 0, 0);
+      
+      scannedPages[currentPageIndex] = resultCanvas.toDataURL('image/png');
+      cancelCrop();
+      updateThumbnails();
+      showToast('Crop applied', 'success');
+    }
+    
+    function getCropStageBounds() {
+      const rect = cropStage.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    }
+    
+    function getCropBox() {
+      return {
+        left: parseFloat(cropBox.style.left) || 0,
+        top: parseFloat(cropBox.style.top) || 0,
+        width: parseFloat(cropBox.style.width) || 0,
+        height: parseFloat(cropBox.style.height) || 0
+      };
+    }
+    
+    function setCropBox(rect) {
+      const stage = getCropStageBounds();
+      const minSize = 45;
+      const left = Math.max(0, Math.min(rect.left, stage.width - minSize));
+      const top = Math.max(0, Math.min(rect.top, stage.height - minSize));
+      const width = Math.max(minSize, Math.min(rect.width, stage.width - left));
+      const height = Math.max(minSize, Math.min(rect.height, stage.height - top));
+      
+      cropBox.style.left = `${left}px`;
+      cropBox.style.top = `${top}px`;
+      cropBox.style.width = `${width}px`;
+      cropBox.style.height = `${height}px`;
+    }
+    
+    function updateCropDrag(clientX, clientY) {
+      if (!cropDrag) return;
+      
+      const dx = clientX - cropDrag.startX;
+      const dy = clientY - cropDrag.startY;
+      const start = cropDrag.startRect;
+      const stage = getCropStageBounds();
+      const minSize = 45;
+      let next = { ...start };
+      
+      if (cropDrag.mode === 'move') {
+        next.left = Math.max(0, Math.min(start.left + dx, stage.width - start.width));
+        next.top = Math.max(0, Math.min(start.top + dy, stage.height - start.height));
+      } else {
+        const right = start.left + start.width;
+        const bottom = start.top + start.height;
+        
+        if (cropDrag.mode.includes('n')) {
+          next.top = Math.max(0, Math.min(start.top + dy, bottom - minSize));
+          next.height = bottom - next.top;
+        }
+        if (cropDrag.mode.includes('s')) {
+          next.height = Math.max(minSize, Math.min(start.height + dy, stage.height - start.top));
+        }
+        if (cropDrag.mode.includes('w')) {
+          next.left = Math.max(0, Math.min(start.left + dx, right - minSize));
+          next.width = right - next.left;
+        }
+        if (cropDrag.mode.includes('e')) {
+          next.width = Math.max(minSize, Math.min(start.width + dx, stage.width - start.left));
+        }
+      }
+      
+      setCropBox(next);
+    }
+    
     function continueScan() {
+      if (cropActive) cancelCrop();
       currentPageIndex = scannedPages.length;
       resultSection.style.display = 'none';
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -827,6 +1037,7 @@
     }
     
     async function saveToServer() {
+      if (cropActive) cancelCrop();
       if (scannedPages.length === 0) {
         showToast('No pages to save', 'error');
         return;
@@ -857,6 +1068,7 @@
     }
 
     async function savePagesToServer() {
+      if (cropActive) cancelCrop();
       if (scannedPages.length === 0) {
         showToast('No pages to save', 'error');
         return;
@@ -888,6 +1100,7 @@
     }
 
     function resetAfterSave() {
+      if (cropActive) cancelCrop();
       scannedPages = [];
       currentPageIndex = 0;
       setTimeout(() => {
@@ -897,6 +1110,7 @@
     }
     
     function retake() {
+      if (cropActive) cancelCrop();
       // Just retake the current page
       resultSection.style.display = 'none';
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -938,6 +1152,7 @@
         wrapper.appendChild(number);
         
         wrapper.onclick = () => {
+          if (cropActive) cancelCrop();
           currentPageIndex = index;
           const img = new Image();
           img.onload = () => {
@@ -966,6 +1181,35 @@
     
     // Event listeners
     captureBtn.addEventListener('click', captureDocument);
+    
+    cropOverlay.addEventListener('pointerdown', (e) => {
+      if (!cropActive) return;
+      e.preventDefault();
+      const handle = e.target.dataset.handle;
+      cropDrag = {
+        mode: handle || 'move',
+        startX: e.clientX,
+        startY: e.clientY,
+        startRect: getCropBox()
+      };
+      cropOverlay.setPointerCapture(e.pointerId);
+    });
+    
+    cropOverlay.addEventListener('pointermove', (e) => {
+      if (!cropDrag) return;
+      e.preventDefault();
+      updateCropDrag(e.clientX, e.clientY);
+    });
+    
+    cropOverlay.addEventListener('pointerup', (e) => {
+      if (!cropDrag) return;
+      cropDrag = null;
+      cropOverlay.releasePointerCapture(e.pointerId);
+    });
+    
+    cropOverlay.addEventListener('pointercancel', () => {
+      cropDrag = null;
+    });
     
     autoBtn.addEventListener('click', () => {
       autoMode = !autoMode;

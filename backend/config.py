@@ -26,7 +26,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "active_folder": str(BACKEND_DIR / "saved_docs"),
     "scan_subfolder": "scans",
     "image_processing": {
-        "enhance": True,
+        "enhance": False,
         "doc_type": "mixed",
         "auto_crop": True,
         "auto_rotate_enabled": True,

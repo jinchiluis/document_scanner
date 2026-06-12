@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import time as time_module
 from datetime import date, datetime, time, timedelta
@@ -27,6 +28,7 @@ EXCLUDED_SENDER_CONTAINS = [
     "@gebuhrenfrei.com",
     "@koelnmesse.de",
 ]
+ZONE_IDENTIFIER_STREAM = "Zone.Identifier"
 
 
 def _parse_date(value: str, field_name: str) -> date:
@@ -55,6 +57,20 @@ def _unique_path(folder: Path, filename: str) -> Path:
         if not renamed.exists():
             return renamed
         counter += 1
+
+
+def _remove_zone_identifier(path: Path) -> dict[str, Any]:
+    """Remove Mark-of-the-Web so Windows Explorer can preview downloaded PDFs."""
+    if os.name != "nt":
+        return {"attempted": False, "removed": False}
+
+    try:
+        Path(f"{path}:{ZONE_IDENTIFIER_STREAM}").unlink()
+        return {"attempted": True, "removed": True}
+    except FileNotFoundError:
+        return {"attempted": True, "removed": False}
+    except OSError as exc:
+        return {"attempted": True, "removed": False, "error": str(exc)}
 
 
 def _to_iso(value: Any) -> str:
@@ -190,18 +206,21 @@ def _scan_folder(folder, date_from: datetime, date_to_exclusive: datetime, outpu
 
                 destination = _unique_path(output_dir, original_name)
                 attachment.SaveAsFile(str(destination))
-                downloaded.append(
-                    {
-                        "filename": destination.name,
-                        "original_filename": original_name,
-                        "path": str(destination),
-                        "sender": sender_email,
-                        "sender_name": sender_name,
-                        "subject": str(getattr(item, "Subject", "") or ""),
-                        "received_at": _to_iso(received_at),
-                        "folder": folder_name,
-                    }
-                )
+                zone_identifier = _remove_zone_identifier(destination)
+                downloaded_item = {
+                    "filename": destination.name,
+                    "original_filename": original_name,
+                    "path": str(destination),
+                    "sender": sender_email,
+                    "sender_name": sender_name,
+                    "subject": str(getattr(item, "Subject", "") or ""),
+                    "received_at": _to_iso(received_at),
+                    "folder": folder_name,
+                    "zone_identifier_removed": zone_identifier["removed"],
+                }
+                if "error" in zone_identifier:
+                    downloaded_item["zone_identifier_error"] = zone_identifier["error"]
+                downloaded.append(downloaded_item)
         except Exception as exc:
             errors.append(
                 {
