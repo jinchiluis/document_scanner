@@ -176,8 +176,31 @@ button:disabled {
   color: #0d5f4c;
 }
 
-.phone-source .source-head {
+.phone-source .source-head,
+.link-source .source-head {
+  align-items: center;
   margin-bottom: 0;
+}
+
+.source-open-btn {
+  align-items: center;
+  background: var(--accent);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 36px;
+  padding: 8px 12px;
+  text-decoration: none;
+  transition: background 140ms ease;
+  white-space: nowrap;
+}
+
+.source-open-btn:hover {
+  background: var(--accent-dark);
 }
 
 .phone-qr {
@@ -460,6 +483,13 @@ input:focus {
   margin-top: 16px;
 }
 
+.files-scroll {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
 .empty {
   background: var(--surface-soft);
   border: 1px dashed var(--line);
@@ -491,6 +521,12 @@ th {
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.files-scroll th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 td {

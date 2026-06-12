@@ -85,7 +85,7 @@ async def save_pdf(req: Request):
 
         processed_pages = process_multiple_pages(pages, **get_image_processing_config())
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        pdf_filename = scan_folder() / f"doc_{timestamp}.pdf"
+        pdf_filename = scan_folder(create=True) / f"doc_{timestamp}.pdf"
 
         pdf = canvas.Canvas(str(pdf_filename), pagesize=A4)
         page_width, page_height = A4

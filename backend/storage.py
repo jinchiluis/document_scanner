@@ -20,32 +20,35 @@ DOCUMENT_EXTENSIONS = {
 JOB_STATE_PATH = BACKEND_DIR / "job_state.json"
 
 
-def active_folder() -> Path:
+def active_folder(create: bool = False) -> Path:
     config = load_config()
     path = Path(config["active_folder"]).expanduser()
-    path.mkdir(parents=True, exist_ok=True)
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def scan_folder() -> Path:
+def scan_folder(create: bool = False) -> Path:
     config = load_config()
-    path = active_folder() / config["scan_subfolder"]
-    path.mkdir(parents=True, exist_ok=True)
+    path = active_folder(create=create) / config["scan_subfolder"]
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def source_folder(source_name: str) -> Path:
+def source_folder(source_name: str, create: bool = False) -> Path:
     config = load_config()
     sources = config.get("sources", {})
     source_config = sources.get(source_name, {})
     subfolder = source_config.get("subfolder", source_name)
-    path = active_folder() / subfolder
-    path.mkdir(parents=True, exist_ok=True)
+    path = active_folder(create=create) / subfolder
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
     return path
 
 
 def save_scan_bytes(filename: str, content: bytes) -> Path:
-    destination = scan_folder() / filename
+    destination = scan_folder(create=True) / filename
     with destination.open("wb") as output_file:
         output_file.write(content)
     return destination
@@ -64,6 +67,8 @@ def _file_info(path: Path) -> dict[str, Any]:
 
 def list_document_files(limit: int | None = None) -> list[dict[str, Any]]:
     folder = active_folder()
+    if not folder.exists():
+        return []
     files = [
         _file_info(path)
         for path in folder.rglob("*")
@@ -124,7 +129,7 @@ def folder_status() -> dict[str, Any]:
     files = list_document_files()
     scan_files = [
         _file_info(path)
-        for path in scans.iterdir()
+        for path in (scans.iterdir() if scans.exists() else [])
         if path.is_file() and path.suffix.lower() in DOCUMENT_EXTENSIONS
     ]
     scan_files.sort(key=lambda item: item["modified_at"], reverse=True)
@@ -135,6 +140,6 @@ def folder_status() -> dict[str, Any]:
         "document_count": len(files),
         "scan_count": len(scan_files),
         "job_state": load_job_state(),
-        "recent_files": files[:10],
-        "recent_scans": scan_files[:10],
+        "recent_files": files,
+        "recent_scans": scan_files,
     }

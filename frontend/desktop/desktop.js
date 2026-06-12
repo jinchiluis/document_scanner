@@ -1,9 +1,7 @@
 const activeFolderInput = document.getElementById("active-folder");
 const saveFolderBtn = document.getElementById("save-folder-btn");
 const refreshBtn = document.getElementById("refresh-btn");
-const scanFolderDisplay = document.getElementById("scan-folder-display");
-const scanCount = document.getElementById("scan-count");
-const documentCount = document.getElementById("document-count");
+const filesHeading = document.getElementById("files-heading");
 const filesBody = document.getElementById("files-body");
 const filesTable = document.getElementById("files-table");
 const filesEmpty = document.getElementById("files-empty");
@@ -40,12 +38,8 @@ function formatSize(bytes) {
 }
 
 function renderStatus(status) {
-  const scanFolderText = status.scan_folder || "-";
-  if (scanFolderDisplay) scanFolderDisplay.textContent = scanFolderText;
-  scanCount.textContent = status.scan_count ?? 0;
-  documentCount.textContent = status.document_count ?? 0;
-
   const files = status.recent_files || [];
+  if (filesHeading) filesHeading.textContent = `Files (${files.length})`;
   filesBody.innerHTML = "";
   filesEmpty.style.display = files.length ? "none" : "block";
   filesTable.style.display = files.length ? "table" : "none";
